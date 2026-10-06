@@ -20,6 +20,49 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
           
+      - name: Verify pre-commit tooling configuration
+        run: |
+          test -f .husky/pre-commit
+          test -x .husky/pre-commit
+          test -f eslint.config.mjs
+          bash -n .husky/pre-commit
+          node --check eslint.config.mjs
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const config = JSON.parse(fs.readFileSync('.lintstagedrc.json', 'utf8'));
+          const required = [
+            '@eslint/js',
+            '@typescript-eslint/eslint-plugin',
+            '@typescript-eslint/parser',
+            'eslint',
+            'eslint-config-prettier',
+            'globals',
+            'husky',
+            'lint-staged',
+            'prettier',
+          ];
+          if (pkg.scripts?.postinstall !== 'husky') {
+            throw new Error('package.json must install Husky from postinstall');
+          }
+          for (const dep of required) {
+            if (!pkg.devDependencies?.[dep]) throw new Error(`missing devDependency: ${dep}`);
+          }
+          const codeTasks = config['*.{js,ts,tsx,jsx}'];
+          if (!Array.isArray(codeTasks) || codeTasks.join('|') !== 'eslint --fix|prettier --write') {
+            throw new Error('invalid JS/TS lint-staged pipeline');
+          }
+          if (config['*.{json,md,yaml,yml}'] !== 'prettier --write') {
+            throw new Error('invalid docs/config lint-staged pipeline');
+          }
+          const hook = fs.readFileSync('.husky/pre-commit', 'utf8');
+          if (!hook.includes('set -e')) throw new Error('pre-commit must abort on lint-staged failure');
+          if (!hook.includes('npx lint-staged')) throw new Error('pre-commit must run lint-staged');
+          if (!hook.includes('npm audit --audit-level=high --prefix backend')) {
+            throw new Error('pre-commit must run informational high-severity npm audit');
+          }
+          NODE
+
       - name: Install dependencies
         working-directory: ./backend
         run: npm ci

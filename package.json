@@ -28,7 +28,8 @@
     "migrate:down": "knex migrate:down",
     "health-check": "node migrations/healthChecker.js",
     "swagger:generate": "GENERATE_SWAGGER=true node -e \"require('./src/utils/swaggerGenerator').generateSwagger()\"",
-    "docs": "npm run swagger:generate && echo 'Documentation available at http://localhost:3000/api/docs'"
+    "docs": "npm run swagger:generate && echo 'Documentation available at http://localhost:3000/api/docs'",
+    "postinstall": "husky"
   },
   "dependencies": {
     "@apollo/server": "^4.10.0",
@@ -108,6 +109,16 @@
     "socket.io-client": "^4.8.3",
     "supertest": "^7.0.0",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0"
+    "tsconfig-paths": "^4.2.0",
+    "@typescript-eslint/parser": "^8.71.1",
+    "eslint": "^9.39.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.6.2",
+    "typescript": "^6.0.3",
+    "@eslint/js": "^9.39.1",
+    "@typescript-eslint/eslint-plugin": "^8.71.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.4.0"
   }
 }

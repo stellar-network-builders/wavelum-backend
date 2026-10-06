@@ -1,0 +1,7 @@
+set -e
+
+npx lint-staged
+
+if ! npm audit --audit-level=high --prefix backend; then
+  echo "npm audit reported high-severity findings; informational only for pre-commit." >&2
+fi
