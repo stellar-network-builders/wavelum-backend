@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "cross-env NODE_ENV=test jest --forceExit",
+    "test": "cross-env NODE_ENV=test jest --coverage --forceExit",
     "test:quarantine": "cross-env NODE_ENV=test jest --config jest.quarantine.config.js --forceExit",
     "test:watch": "cross-env NODE_ENV=test jest --watch",
     "test:coverage": "cross-env NODE_ENV=test jest --coverage --forceExit",

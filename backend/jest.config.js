@@ -23,6 +23,14 @@ module.exports = {
     '!src/**/*.test.js',
     '!src/**/index.js'
   ],
+  coverageThreshold: {
+    global: {
+      branches: 60,
+      functions: 65,
+      lines: 70,
+      statements: 70
+    }
+  },
   maxWorkers: '50%',
   bail: false
 };
