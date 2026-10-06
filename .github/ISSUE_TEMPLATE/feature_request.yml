@@ -1,0 +1,39 @@
+name: Feature Request
+description: Propose a new capability or improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem does this solve? Who is affected?
+      placeholder: "It is difficult to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the change you would like to see, including API or behavior details.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you evaluated and why they were rejected.
+    validations:
+      required: false
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact priority
+      description: How important is this to your use case?
+      options:
+        - critical
+        - high
+        - medium
+        - low
+    validations:
+      required: true

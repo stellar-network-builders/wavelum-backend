@@ -1,0 +1,37 @@
+name: Technical Debt
+description: Flag accumulated technical debt that needs scheduled work.
+title: "[Tech Debt]: "
+labels: ["standards"]
+body:
+  - type: input
+    id: area
+    attributes:
+      label: Area of debt
+      description: The module, service, or subsystem where the debt lives.
+      placeholder: "e.g. backend/src/middleware/auth, contracts/vesting"
+    validations:
+      required: true
+  - type: textarea
+    id: current-vs-desired
+    attributes:
+      label: Current vs desired state
+      description: Describe how the code works today and what it should look like.
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risk if left unaddressed
+      description: Security, reliability, or maintenance impact of keeping the debt.
+    validations:
+      required: false
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Effort estimate
+      options:
+        - small (hours)
+        - medium (days)
+        - large (weeks)
+    validations:
+      required: true

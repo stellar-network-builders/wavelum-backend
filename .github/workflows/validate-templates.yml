@@ -1,0 +1,23 @@
+name: Validate Issue Templates
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths: [ ".github/ISSUE_TEMPLATE/**", ".github/workflows/validate-templates.yml", "scripts/validate-issue-templates.sh" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+    paths: [ ".github/ISSUE_TEMPLATE/**", ".github/workflows/validate-templates.yml", "scripts/validate-issue-templates.sh" ]
+
+jobs:
+  validate-templates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Validate issue templates
+        run: bash scripts/validate-issue-templates.sh
