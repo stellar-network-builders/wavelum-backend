@@ -57,7 +57,7 @@ jest.mock('@stellar/stellar-sdk', () => ({
     start_date: '2024-01-01T00:00:00Z',
     vesting_duration: 365,
   })),
-}));
+}), { virtual: true });
 
 describe('VestingScheduleManager with AssetDecimalNormalizer', () => {
   let manager;

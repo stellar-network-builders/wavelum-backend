@@ -5,7 +5,7 @@ const { defineConfig, devices } = require('@playwright/test');
 // involved, so a single chromium project is enough. Playwright manages the
 // backend lifecycle through `webServer` below.
 module.exports = defineConfig({
-  testDir: './e2e',
+  testDir: '../e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

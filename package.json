@@ -28,7 +28,11 @@
     "migrate:down": "knex migrate:down",
     "health-check": "node migrations/healthChecker.js",
     "swagger:generate": "GENERATE_SWAGGER=true node -e \"require('./src/utils/swaggerGenerator').generateSwagger()\"",
-    "docs": "npm run swagger:generate && echo 'Documentation available at http://localhost:3000/api/docs'"
+    "docs": "npm run swagger:generate && echo 'Documentation available at http://localhost:3000/api/docs'",
+    "test:unit": "npm --prefix backend run test:unit",
+    "test:integration": "npm --prefix backend run test:integration",
+    "test:e2e": "npm --prefix backend run test:e2e",
+    "test:structure": "node scripts/validate-test-structure.js"
   },
   "dependencies": {
     "@apollo/server": "^4.10.0",

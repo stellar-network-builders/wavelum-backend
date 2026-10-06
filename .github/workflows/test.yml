@@ -32,9 +32,24 @@ jobs:
         working-directory: ./backend
         run: mkdir -p data
         
-      - name: Run backend tests
+      - name: Validate test structure
+        run: node scripts/validate-test-structure.js
+
+      - name: Run unit tests
         working-directory: ./backend
-        run: npm test
+        run: npm run test:unit
+
+      - name: Run integration tests
+        working-directory: ./backend
+        run: npm run test:integration
+
+      - name: Install Playwright Chromium
+        working-directory: ./backend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        working-directory: ./backend
+        run: npm run test:e2e
         
       - name: Generate coverage report
         working-directory: ./backend

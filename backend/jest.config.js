@@ -1,28 +1,35 @@
 const quarantine = require('./jest.quarantine');
 
-// Escape a relative test path into a regex anchored at the end of the full path.
+const standardizePath = (p) => {
+  if (p === 'e2e/auth-flow.spec.js') return null;
+  if (p.startsWith('src/')) {
+    const category = p.includes('.integration.test.js') || p.includes('.e2e.test.js')
+      ? 'integration'
+      : 'unit';
+    return `test/${category}/${p.replace(/_tests\\.js$/, '.test.js')}`;
+  }
+  if (p.startsWith('test/')) {
+    return `test/integration/legacy/${p.slice(5).replace(/_tests\\.js$/, '.test.js')}`;
+  }
+  return p;
+};
+
+const standardizedQuarantine = quarantine.map(standardizePath).filter(Boolean);
 const toIgnorePattern = (p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$';
 
-// Default Jest configuration — the BLOCKING test run.
-//
-// Quarantined suites (see jest.quarantine.js) are excluded here so `npm test`
-// reflects the health of the maintained suite and stays green. The quarantined
-// suites still run, non-blocking, via `npm run test:quarantine` for burn-down.
 module.exports = {
   testEnvironment: 'node',
   testTimeout: 60000,
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  resolver: '<rootDir>/test/standardizedResolver.js',
   testMatch: [
-    '**/test/**/*.test.js',
-    '**/tests/**/*.test.js',
-    '**/?(*.)+(spec|test).js'
+    '<rootDir>/test/unit/**/*.test.js',
+    '<rootDir>/test/unit/**/*.spec.js',
+    '<rootDir>/test/integration/**/*.test.js',
+    '<rootDir>/test/integration/**/*.spec.js',
   ],
-  testPathIgnorePatterns: ['/node_modules/', ...quarantine.map(toIgnorePattern)],
-  collectCoverageFrom: [
-    'src/**/*.js',
-    '!src/**/*.test.js',
-    '!src/**/index.js'
-  ],
+  testPathIgnorePatterns: ['/node_modules/', ...standardizedQuarantine.map(toIgnorePattern)],
+  collectCoverageFrom: ['src/**/*.js', '!src/**/*.test.js', '!src/**/index.js'],
   maxWorkers: '50%',
-  bail: false
+  bail: false,
 };

@@ -6,17 +6,18 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "cross-env NODE_ENV=test jest --forceExit",
+    "test": "npm run test:unit && npm run test:integration",
     "test:quarantine": "cross-env NODE_ENV=test jest --config jest.quarantine.config.js --forceExit",
     "test:watch": "cross-env NODE_ENV=test jest --watch",
-    "test:coverage": "cross-env NODE_ENV=test jest --coverage --forceExit",
-    "test:integration": "cross-env NODE_ENV=test jest test/auth.integration.test.js --forceExit",
-    "test:integration:soroban": "cross-env NODE_ENV=test jest test/sorobanRpcClient.integration.test.js test/sorobanEventPollerService.integration.test.js --forceExit",
+    "test:coverage": "cross-env NODE_ENV=test jest --config jest.config.js --coverage --forceExit",
+    "test:integration": "cross-env NODE_ENV=test jest --config jest.integration.config.js --forceExit",
+    "test:integration:soroban": "cross-env NODE_ENV=test jest --config jest.integration.config.js test/integration/legacy/sorobanRpcClient.integration.test.js test/integration/legacy/sorobanEventPollerService.integration.test.js --forceExit",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:parity": "cross-env NODE_ENV=test jest --testPathPattern='sorobanVestingParity.test' --forceExit --verbose",
-    "test:all": "npm run test:integration && npm run test:e2e",
-    "validate:env": "node -e \"require('./src/config/envValidation').validateEnvOrExit()\""
+    "test:parity": "cross-env NODE_ENV=test jest --config jest.unit.config.js --testPathPattern='sorobanVestingParity.test' --forceExit --verbose",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "validate:env": "node -e \"require('./src/config/envValidation').validateEnvOrExit()\"",
+    "test:unit": "cross-env NODE_ENV=test jest --config jest.unit.config.js --forceExit"
   },
   "dependencies": {
     "@apollo/server": "^4.9.5",
