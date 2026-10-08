@@ -1,25 +1,27 @@
-FROM node:18-alpine
+FROM node:22-trixie-slim AS deps
 
 WORKDIR /app
 
-# Install dependencies
-RUN apk add --no-cache postgresql-client
+COPY package.json ./
+RUN npm install --omit=dev --no-audit --no-fund \
+  && mkdir -p /app/logs
 
-# Copy package files
-COPY package*.json ./
-RUN npm install --production
+FROM gcr.io/distroless/nodejs22-debian13:nonroot AS runtime
 
-# Copy source code
-COPY . .
+ENV NODE_ENV=production
+ENV PORT=3001
 
-# Create logs directory
-RUN mkdir -p /app/logs
+WORKDIR /app
 
-# Expose health endpoint
+COPY --from=deps --chown=65532:65532 /app/node_modules ./node_modules
+COPY --from=deps --chown=65532:65532 /app/logs ./logs
+COPY --chown=65532:65532 package.json monitor.js walLag.js ./
+
+USER 65532
+
 EXPOSE 3001
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD ["/nodejs/bin/node", "-e", "const http=require('http');const req=http.get('http://127.0.0.1:3001/health',res=>process.exit(res.statusCode===200?0:1));req.on('error',()=>process.exit(1));"]
 
-CMD ["node", "monitor.js"]
+CMD ["monitor.js"]

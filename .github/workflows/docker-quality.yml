@@ -1,0 +1,123 @@
+name: Docker Quality
+
+on:
+  push:
+    branches: ["main", "develop", "feature/*"]
+  pull_request:
+    branches: ["main", "develop"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HADOLINT_VERSION: "v2.15.1"
+  TRIVY_VERSION: "0.75.0"
+
+jobs:
+  docker-lint:
+    name: docker-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Lint every Dockerfile with hadolint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t dockerfiles < <(find . -type f -name 'Dockerfile' -not -path '*/node_modules/*' -print | sort)
+          test "${#dockerfiles[@]}" -gt 0
+          for file in "${dockerfiles[@]}"; do
+            echo "hadolint: $file"
+            docker run --rm -i "hadolint/hadolint:${HADOLINT_VERSION}-alpine" < "$file"
+          done
+
+      - name: Validate Compose files
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose-scalable.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml config --quiet
+
+  docker-scan:
+    name: docker-scan
+    needs: docker-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Build production images
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --pull -t wavelum-backend:ci backend
+          docker build --pull -t wavelum-health-monitor:ci legacy_cleanup/database/health-monitor
+
+      - name: Block critical image vulnerabilities
+        shell: bash
+        run: |
+          set -euo pipefail
+          for image in wavelum-backend:ci wavelum-health-monitor:ci; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+              "aquasec/trivy:${TRIVY_VERSION}" image \
+              --scanners vuln \
+              --severity CRITICAL \
+              --exit-code 1 \
+              --no-progress \
+              "$image"
+          done
+
+      - name: Verify production image is at least 40 percent smaller
+        if: github.event_name == 'pull_request' || (github.ref_name != 'main' && github.ref_name != 'develop')
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          base_sha="$(git merge-base HEAD origin/main)"
+          baseline_context="$(mktemp -d)"
+          cp -a backend/. "$baseline_context/"
+          git show "$base_sha:backend/Dockerfile" > "$baseline_context/Dockerfile"
+          if git cat-file -e "$base_sha:backend/.dockerignore" 2>/dev/null; then
+            git show "$base_sha:backend/.dockerignore" > "$baseline_context/.dockerignore"
+          else
+            rm -f "$baseline_context/.dockerignore"
+          fi
+
+          docker build --pull -t wavelum-backend:baseline "$baseline_context"
+
+          baseline_bytes="$(docker image inspect wavelum-backend:baseline --format '{{.Size}}')"
+          current_bytes="$(docker image inspect wavelum-backend:ci --format '{{.Size}}')"
+
+          node - "$baseline_bytes" "$current_bytes" <<'NODE'
+          const fs = require('fs');
+          const baseline = Number(process.argv[2]);
+          const current = Number(process.argv[3]);
+          if (!Number.isFinite(baseline) || !Number.isFinite(current) || baseline <= 0) {
+            throw new Error('Invalid Docker image size measurement');
+          }
+          const reduction = ((baseline - current) / baseline) * 100;
+          const mib = (n) => (n / 1024 / 1024).toFixed(1);
+          const summary =
+            `Baseline image: ${mib(baseline)} MiB\n` +
+            `Current image: ${mib(current)} MiB\n` +
+            `Reduction: ${reduction.toFixed(2)}%\n`;
+          process.stdout.write(summary);
+          fs.appendFileSync(
+            process.env.GITHUB_STEP_SUMMARY,
+            `### Docker image size\n\nBaseline: ${mib(baseline)} MiB  \nCurrent: ${mib(current)} MiB  \nReduction: ${reduction.toFixed(2)}%\n`
+          );
+          if (reduction < 40) {
+            console.error(`Production image reduction ${reduction.toFixed(2)}% is below the required 40%.`);
+            process.exit(1);
+          }
+          NODE

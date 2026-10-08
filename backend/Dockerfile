@@ -1,32 +1,25 @@
-# Use Node.js 18 LTS as base image
-FROM node:18-alpine
+FROM node:22-trixie-slim AS deps
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
 
-# Install dependencies
-RUN npm ci --only=production
+FROM gcr.io/distroless/nodejs22-debian13:nonroot AS runtime
 
-# Copy source code
-COPY . .
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+WORKDIR /app
 
-# Change ownership of the app directory
-RUN chown -R nodejs:nodejs /app
-USER nodejs
+COPY --from=deps --chown=65532:65532 /app/node_modules ./node_modules
+COPY --chown=65532:65532 . .
 
-# Expose port
+USER 65532
+
 EXPOSE 3000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD ["/nodejs/bin/node", "-e", "const http=require('http');const req=http.get('http://127.0.0.1:3000/health',res=>process.exit(res.statusCode===200?0:1));req.on('error',()=>process.exit(1));"]
 
-# Start the application
-CMD ["npm", "start"]
+CMD ["src/index.js"]

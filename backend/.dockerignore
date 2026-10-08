@@ -58,3 +58,18 @@ jspm_packages/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Test and development-only files are not part of the production image
+test/
+e2e/
+playwright-report/
+test-results/
+**/*.test.js
+**/*.spec.js
+**/*_tests.js
+jest.config.js
+jest.*.config.js
+jest.setup.js
+jest.quarantine.js
+playwright.config.js
+**/*.md

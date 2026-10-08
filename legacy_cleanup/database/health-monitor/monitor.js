@@ -2,8 +2,8 @@ const express = require('express');
 const redis = require('redis');
 const winston = require('winston');
 const cron = require('node-cron');
-const { exec } = require('child_process');
-const { promisify } = require('util');
+const { Client } = require('pg');
+const { measureReplicationLag } = require('./walLag');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -55,71 +55,78 @@ let redisClient;
 
 async function initializeRedis() {
   try {
-    redisClient = redis.createClient(config.redis);
+    // node-redis v4 requires transport settings under socket; plain
+    // {host,port} silently selects localhost and breaks Compose deployments.
+    redisClient = redis.createClient({
+      socket: { host: config.redis.host, port: Number(config.redis.port) }
+    });
     await redisClient.connect();
     logger.info('Connected to Redis');
   } catch (error) {
+    // Redis is an optional cache, not the source of database health.
+    redisClient = null;
     logger.error('Failed to connect to Redis:', error);
   }
 }
 
 // Health check functions
-async function checkPostgresConnection(dbConfig) {
-  return new Promise((resolve) => {
-    const cmd = `PGPASSWORD='${dbConfig.password}' psql -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.user} -d ${dbConfig.database} -c "SELECT 1;"`;
-    
-    exec(cmd, { timeout: 5000 }, (error, stdout, stderr) => {
-      if (error) {
-        resolve({
-          healthy: false,
-          error: error.message,
-          responseTime: error.code === 'ETIMEDOUT' ? 5000 : null
-        });
-      } else {
-        resolve({
-          healthy: true,
-          error: null,
-          responseTime: null // Would need more sophisticated timing
-        });
-      }
-    });
+function createPostgresClient(dbConfig) {
+  return new Client({
+    host: dbConfig.host,
+    port: Number(dbConfig.port),
+    user: dbConfig.user,
+    password: dbConfig.password,
+    database: dbConfig.database,
+    connectionTimeoutMillis: 5000,
+    query_timeout: 5000,
+    statement_timeout: 5000
   });
+}
+
+async function runPostgresQuery(dbConfig, text) {
+  const client = createPostgresClient(dbConfig);
+  const startedAt = Date.now();
+
+  try {
+    await client.connect();
+    const result = await client.query(text);
+    return { result, responseTime: Date.now() - startedAt };
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+async function checkPostgresConnection(dbConfig) {
+  try {
+    const { responseTime } = await runPostgresQuery(dbConfig, 'SELECT 1;');
+    return { healthy: true, error: null, responseTime };
+  } catch (error) {
+    return { healthy: false, error: error.message, responseTime: null };
+  }
 }
 
 async function checkReplicaLag(replicaConfig) {
-  return new Promise((resolve) => {
-    const cmd = `PGPASSWORD='${replicaConfig.password}' psql -h ${replicaConfig.host} -p ${replicaConfig.port} -U ${replicaConfig.user} -d ${replicaConfig.database} -c "SELECT pg_last_wal_replay_lsn() AS replay_lsn;"`;
-    
-    exec(cmd, { timeout: 5000 }, (error, stdout, stderr) => {
-      if (error) {
-        resolve({ lag: null, error: error.message });
-      } else {
-        const match = stdout.match(/([0-9A-F\/]+)/);
-        resolve({ 
-          lag: match ? match[1] : null, 
-          error: null 
-        });
-      }
-    });
-  });
+  try {
+    const { result } = await runPostgresQuery(
+      replicaConfig,
+      'SELECT pg_last_wal_replay_lsn() AS replay_lsn;'
+    );
+    return { lag: result.rows[0]?.replay_lsn || null, error: null };
+  } catch (error) {
+    return { lag: null, error: error.message };
+  }
 }
 
 async function getMasterLsn() {
-  return new Promise((resolve) => {
-    const cmd = `PGPASSWORD='${config.master.password}' psql -h ${config.master.host} -p ${config.master.port} -U ${config.master.user} -d ${config.master.database} -c "SELECT pg_current_wal_lsn() AS current_lsn;"`;
-    
-    exec(cmd, { timeout: 5000 }, (error, stdout, stderr) => {
-      if (error) {
-        resolve({ lsn: null, error: error.message });
-      } else {
-        const match = stdout.match(/([0-9A-F\/]+)/);
-        resolve({ 
-          lsn: match ? match[1] : null, 
-          error: null 
-        });
-      }
-    });
-  });
+  try {
+    const { result } = await runPostgresQuery(
+      config.master,
+      'SELECT pg_current_wal_lsn() AS current_lsn;'
+    );
+    return { lsn: result.rows[0]?.current_lsn || null, error: null };
+  } catch (error) {
+    return { lsn: null, error: error.message };
+  }
 }
 
 // Main health check function
@@ -146,12 +153,27 @@ async function performHealthCheck() {
         const replicaLag = await checkReplicaLag(config.replicas[i]);
         const masterLsn = await getMasterLsn();
         
+        replicaHealth.lagThreshold = config.lagThreshold;
         if (replicaLag.lag && masterLsn.lsn) {
-          // Calculate lag in bytes (simplified)
-          const lagBytes = Math.abs(parseInt(replicaLag.lag.replace(/\//g, ''), 16) - parseInt(masterLsn.lsn.replace(/\//g, ''), 16));
-          replicaHealth.lag = lagBytes;
-          replicaHealth.lagThreshold = config.lagThreshold;
-          replicaHealth.lagExceeded = lagBytes > config.lagThreshold;
+          try {
+            const measured = measureReplicationLag(
+              masterLsn.lsn, replicaLag.lag, config.lagThreshold
+            );
+            replicaHealth.lag = measured.lag;
+            replicaHealth.lagExceeded = measured.lagExceeded;
+            if (measured.error) replicaHealth.lagError = measured.error;
+          } catch (error) {
+            replicaHealth.lag = null;
+            replicaHealth.lagExceeded = true;
+            replicaHealth.lagError = error.message;
+          }
+        } else {
+          // An unavailable replica/master WAL position must never be
+          // reported as healthy with a silently missing lag measurement.
+          replicaHealth.lag = null;
+          replicaHealth.lagExceeded = true;
+          replicaHealth.lagError =
+            replicaLag.error || masterLsn.error || 'Replication WAL position unavailable';
         }
       }
       
@@ -173,8 +195,12 @@ async function performHealthCheck() {
     }
 
     // Cache results in Redis
-    if (redisClient) {
-      await redisClient.setEx('db_health_status', 60, JSON.stringify(healthStatus));
+    if (redisClient?.isReady) {
+      try {
+        await redisClient.setEx('db_health_status', 60, JSON.stringify(healthStatus));
+      } catch (error) {
+        logger.warn('Health-status cache write failed; database probe remains authoritative', error.message);
+      }
     }
 
     logger.info('Health check completed', { overall: healthStatus.overall });
@@ -206,18 +232,18 @@ app.get('/health', async (req, res) => {
 
 app.get('/health/cached', async (req, res) => {
   try {
-    if (redisClient) {
-      const cached = await redisClient.get('db_health_status');
-      if (cached) {
-        res.json(JSON.parse(cached));
-      } else {
-        const health = await performHealthCheck();
-        res.json(health);
+    if (redisClient?.isReady) {
+      try {
+        const cached = await redisClient.get('db_health_status');
+        if (cached) {
+          return res.json(JSON.parse(cached));
+        }
+      } catch (error) {
+        logger.warn('Health cache unavailable; checking live database status', error.message);
       }
-    } else {
-      const health = await performHealthCheck();
-      res.json(health);
     }
+    const health = await performHealthCheck();
+    res.status(health.overall === 'healthy' || health.overall === 'degraded' ? 200 : 503).json(health);
   } catch (error) {
     res.status(503).json({ 
       overall: 'error', 
