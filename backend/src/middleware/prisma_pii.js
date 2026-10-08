@@ -1,5 +1,5 @@
 // backend/src/middleware/prisma_pii.js
-const { encrypt, decrypt } = require('../utils/encryption');
+const { encrypt, decrypt } = require('../util/encryption');
 
 function handlePII(model, data) {
   if (data.full_name) data.full_name = encrypt(data.full_name);
