@@ -1,5 +1,8 @@
 # Lumina Backend
 
+[![E2E Pipeline](https://github.com/stellar-network-builders/wavelum-backend/actions/workflows/e2e-pipeline.yml/badge.svg)](https://github.com/stellar-network-builders/wavelum-backend/actions/workflows/e2e-pipeline.yml)
+![Pipeline SLA](https://img.shields.io/badge/pipeline%20SLA-%3C30%20min-brightgreen)
+
 Node.js backend API and services for the Lumina Network â€” a blockchain-based vesting vault and token streaming platform on Stellar Soroban.
 
 ## Overview
