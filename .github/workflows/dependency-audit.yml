@@ -1,0 +1,65 @@
+name: Dependency Audit
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-audit:
+    name: Dependency audit (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: root
+            directory: .
+          - package: backend
+            directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+      - name: Validate declared dependencies and report license/deprecation metadata
+        run: node scripts/dependency-audit.cjs ${{ matrix.package }}
+      - name: Validate npm lockfile resolution without scripts or lock rewrites
+        working-directory: ${{ matrix.directory }}
+        run: npm ci --dry-run --ignore-scripts --no-audit --no-fund
+      - name: Record outdated dependency metrics (informational)
+        if: always()
+        working-directory: ${{ matrix.directory }}
+        run: |
+          report="$GITHUB_WORKSPACE/dependency-reports/${{ matrix.package }}-outdated.json"
+          mkdir -p "$GITHUB_WORKSPACE/dependency-reports"
+          set +e
+          npm outdated --json > "$report"
+          status=$?
+          set -e
+          if [ "$status" -gt 1 ]; then
+            echo "::warning::Outdated metadata lookup failed; see the retained JSON report."
+            echo "Outdated metadata unavailable; not zero outdated dependencies." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node -e 'const fs=require("fs"); const p=process.argv[1]; const d=JSON.parse(fs.readFileSync(p,"utf8") || "{}"); const entries=Object.keys(d).filter(k => k !== "error"); const text=d.error ? "Outdated metadata unavailable; not zero outdated dependencies." : `Outdated direct dependencies: ${entries.length}`; console.log(text); fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n${text}\n`);' "$report" || echo "::warning::Outdated report could not be parsed."
+      - name: Retain dependency reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-${{ matrix.package }}
+          path: dependency-reports/
+          if-no-files-found: warn
+          retention-days: 14

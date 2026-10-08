@@ -204,3 +204,11 @@ If you encounter issues:
 - Add comments for complex logic
 
 Thank you for contributing to Vesting Vault! 🚀
+
+## Dependency management
+
+Root and backend retain separate manifests and committed lockfiles. Follow the
+[dependency management guide](docs/DEPENDENCY_MANAGEMENT.md) for exact/caret
+range policy, lock updates, local audit commands and informational license,
+deprecation and outdated-package reports. `legacy_cleanup/` is a frozen archive
+outside the active dependency gate.
