@@ -167,6 +167,31 @@ class CacheService {
   }
 
   /**
+   * Atomically read and destroy a one-time cache record.
+   * Authentication must never use separate GET and DEL requests: they permit
+   * concurrent replay. Redis GETDEL (or its atomic Lua equivalent) is required.
+   * Connection/command/parse failures propagate so auth fails closed.
+   */
+  async consume(key) {
+    if (!this.isReady()) {
+      throw new Error('Redis unavailable for one-time cache consume');
+    }
+
+    try {
+      const raw = typeof this.client.getDel === 'function'
+        ? await this.client.getDel(key)
+        : await this.client.eval(
+            'local value = redis.call("GET", KEYS[1]); if value then redis.call("DEL", KEYS[1]); end; return value',
+            { keys: [key], arguments: [] }
+          );
+      return raw === null || raw === undefined ? null : JSON.parse(raw);
+    } catch (error) {
+      logger.error('Error consuming one-time cache key:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete value from cache
    * @param {string} key - Cache key
    * @returns {Promise<boolean>} Success status

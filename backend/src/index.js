@@ -417,6 +417,47 @@ app.post("/health/circuit-breakers/:service/reset", (req, res) => {
   }
 });
 
+// SEP-10 wallet login runs through signed challenges and one-time Redis replay
+// state. Keep the legacy auth endpoints unchanged for existing clients.
+const sep10AuthMiddleware = require("./middleware/sep10Auth.middleware");
+app.post("/api/auth/sep10/challenge", sep10AuthMiddleware.issueChallenge);
+app.post(
+  "/api/auth/sep10/verify",
+  sep10AuthMiddleware.verifyChallenge,
+  async (req, res) => {
+    try {
+      // This identity is set exclusively by successful SEP-10 signature
+      // verification and a destructive, atomic consume of its nonce record.
+      const stellarAddress = req.sep10User && req.sep10User.stellarPublicKey;
+      if (!stellarAddress) {
+        return res.status(401).json({
+          success: false,
+          error: "invalid_challenge",
+        });
+      }
+
+      const tokens = await authService.createTokens(stellarAddress);
+      authService.setRefreshTokenCookie(res, tokens.refreshToken);
+      return res.json({
+        success: true,
+        data: {
+          address: stellarAddress,
+          accessToken: tokens.accessToken,
+          expiresIn: tokens.expiresIn,
+          tokenType: tokens.tokenType,
+        },
+      });
+    } catch (error) {
+      logger.error("SEP-10 token issuance failed:", error);
+      return res.status(500).json({
+        success: false,
+        error: "authentication_error",
+        message: "Unable to issue authenticated session tokens",
+      });
+    }
+  },
+);
+
 // Authentication endpoints
 app.post("/api/auth/login", async (req, res) => {
   try {
