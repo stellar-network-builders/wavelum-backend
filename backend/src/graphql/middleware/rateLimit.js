@@ -1,4 +1,12 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+
+// Only the framework's connection-derived IP may select an ingress bucket.
+// Arbitrary x-user-address and Bearer bytes are NOT authenticated principals.
+// ipKeyGenerator also groups IPv6 addresses by subnet to prevent prefix rotation.
+const trustedIpKey = (req) => {
+  const ip = req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress;
+  return `ip:${ip ? ipKeyGenerator(ip) : 'unknown'}`;
+};
 
 const requestCounts = new Map();
 
@@ -26,9 +34,10 @@ const graphqlRateLimitMiddleware = (options = {}) => {
     const req = context.req;
     if (!req) return resolve(parent, args, context, info);
 
-    const clientIp = req.ip || req.connection?.remoteAddress || req.headers['x-forwarded-for'];
+    // GraphQL's resolver-level limiter also distinguishes verified user context,
+    // but never derives identity or client IP from user-controlled headers.
     const userAddress = user?.address || 'anonymous';
-    const identifier = `${clientIp}:${userAddress}`;
+    const identifier = `${trustedIpKey(req)}:${userAddress}`;
 
     let config = !user ? RATE_LIMIT_CONFIGS.unauthenticated : (user.role === 'admin' ? RATE_LIMIT_CONFIGS.admin : RATE_LIMIT_CONFIGS.user);
     const windowMs = options.windowMs || config.windowMs;
@@ -77,22 +86,17 @@ const createRateLimiter = (options = {}) => {
     legacyHeaders: false,
     skipSuccessfulRequests: options.skipSuccessfulRequests || false,
     skipFailedRequests: options.skipFailedRequests || false,
-    keyGenerator: (req) => {
-      const userAddress = req.headers['x-user-address'];
-      const authHeader = req.headers.authorization;
-      if (userAddress) return `user:${userAddress}`;
-      if (authHeader && authHeader.startsWith('Bearer ')) return `token:${authHeader.substring(7).substring(0, 10)}`;
-      return `ip:${req.ip}`;
-    },
+    // Keep the IP ceiling even for authenticated requests; selecting a
+    // different caller-provided address or token cannot mint a new bucket.
+    keyGenerator: trustedIpKey,
     handler: (req, res) => {
-      const userAddress = req.headers['x-user-address'];
       res.status(429).json({
         error: 'RATE_LIMIT_EXCEEDED',
         message: options.message || 'Too many requests, please try again later.',
         rateLimitInfo: {
           limit: options.max || 100,
           windowMs: options.windowMs || 15 * 60 * 1000,
-          userType: !!userAddress ? 'authenticated' : 'anonymous',
+          userType: req.user?.address ? 'authenticated' : 'anonymous',
           retryAfter: Math.ceil((options.windowMs || 15 * 60 * 1000) / 1000)
         }
       });
@@ -118,6 +122,7 @@ const adaptiveRateLimitMiddleware = async (resolve, parent, args, context, info)
 
 module.exports = {
   graphqlRateLimitMiddleware,
+  trustedIpKey,
   operationRateLimit,
   rateLimiter: createRateLimiter,
   getRateLimitForOperation,

@@ -2564,22 +2564,18 @@ const startServer = async () => {
       logger.info("Continuing without Redis cache...");
     }
 
-    // Initialize GraphQL Server
+    // Initialize the existing Apollo v3 server on the REST HTTP listener.
+    // Both depth and cost validation rules are installed by createApolloServer.
     let graphQLServer = null;
     try {
-      const { GraphQLServer } = require("./graphql/server");
-      graphQLServer = new GraphQLServer(app, httpServer);
-      await graphQLServer.start();
-      await graphQLServer.applyMiddleware(app);
+      const { createApolloServer } = require("./graphql/server");
+      const apolloServer = createApolloServer();
+      await apolloServer.start();
+      // strictCors is already mounted globally; do not install permissive CORS.
+      apolloServer.applyMiddleware({ app, path: "/graphql", cors: false });
+      graphQLServer = apolloServer;
       logger.info("GraphQL Server initialized successfully.");
-
-      const serverInfo = graphQLServer.getServerInfo();
-      logger.info(
-        `GraphQL Playground available at: ${serverInfo.playgroundUrl}`,
-      );
-      logger.info(
-        `GraphQL Subscriptions available at: ${serverInfo.subscriptionEndpoint}`,
-      );
+      logger.info(`GraphQL API available at: http://localhost:${PORT}/graphql`);
     } catch (graphqlError) {
       logger.error("Failed to initialize GraphQL Server:", graphqlError);
       logger.info("Continuing with REST API only...");
