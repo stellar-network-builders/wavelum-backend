@@ -4,8 +4,8 @@
   "description": "Backend for Vesting Vault system with cliff support for top-ups",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "node init && node src/index.js",
+    "dev": "node init && nodemon src/index.js",
     "test": "cross-env NODE_ENV=test jest --forceExit",
     "test:quarantine": "cross-env NODE_ENV=test jest --config jest.quarantine.config.js --forceExit",
     "test:watch": "cross-env NODE_ENV=test jest --watch",

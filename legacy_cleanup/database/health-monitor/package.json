@@ -4,7 +4,7 @@
   "description": "Health monitoring service for PostgreSQL cluster",
   "main": "monitor.js",
   "scripts": {
-    "start": "node monitor.js",
+    "start": "node init && node monitor.js",
     "test": "jest"
   },
   "dependencies": {

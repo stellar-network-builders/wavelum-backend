@@ -4,7 +4,7 @@
   "description": "API for Vesting Vault - Multi-Language Legal Hash Storage",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node init && node index.js",
     "test": "jest --runInBand",
     "test:e2e": "cypress run",
     "test:e2e:open": "cypress open",
