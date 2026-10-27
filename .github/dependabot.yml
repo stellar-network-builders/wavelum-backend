@@ -1,11 +1,26 @@
-# Dependabot configuration — Issue #263
-# Automatically opens PRs for npm and GitHub Actions dependency updates.
+# Dependabot configuration — Issue #33 & #263
+# Automatically opens weekly PRs for npm and GitHub Actions dependency updates.
 # Any PR that introduces a package with a known CVE will be flagged by
 # the vulnerability-scan.yml workflow and must be resolved before merging.
 
 version: 2
 updates:
-  # npm dependencies (backend)
+  # npm dependencies (root workspace)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # npm dependencies (backend service)
   - package-ecosystem: "npm"
     directory: "/backend"
     schedule:
@@ -26,7 +41,7 @@ updates:
       - dependency-name: "express"
         update-types: ["version-update:semver-major"]
 
-  # GitHub Actions
+  # GitHub Actions workflows
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
