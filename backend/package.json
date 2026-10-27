@@ -16,7 +16,9 @@
     "test:e2e:headed": "playwright test --headed",
     "test:parity": "cross-env NODE_ENV=test jest --testPathPattern='sorobanVestingParity.test' --forceExit --verbose",
     "test:all": "npm run test:integration && npm run test:e2e",
-    "validate:env": "node -e \"require('./src/config/envValidation').validateEnvOrExit()\""
+    "validate:env": "node -e \"require('./src/config/envValidation').validateEnvOrExit()\"",
+    "openapi:generate": "node -e \"require('./src/swagger/swaggerGenerator').generateSwagger()\"",
+    "openapi:diff": "node -e \"const fs = require('fs'); const { buildOpenApiSpec } = require('./src/swagger/options'); const { diffOpenApiSpecs } = require('./src/swagger/swaggerGenerator'); const baseline = fs.existsSync('./openapi.json') ? JSON.parse(fs.readFileSync('./openapi.json', 'utf8')) : buildOpenApiSpec(); const res = diffOpenApiSpecs(baseline, buildOpenApiSpec()); if (res.breaking) { console.error(res.issues.join('\\n')); process.exit(1); }\""
   },
   "dependencies": {
     "@apollo/server": "^4.9.5",

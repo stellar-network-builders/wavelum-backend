@@ -60,6 +60,19 @@ jobs:
         working-directory: backend
         run: node --check src/index.js
 
+      - name: Generate and verify OpenAPI 3.1 specification & breaking-change diff
+        working-directory: backend
+        run: |
+          npm run openapi:generate
+          npm run openapi:diff
+
+      - name: Upload OpenAPI 3.1 JSON artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: openapi-spec
+          path: backend/openapi.json
+          retention-days: 30
+
       - name: Run npm audit (high severity)
         working-directory: backend
         run: npm audit --audit-level=high --omit=dev || true

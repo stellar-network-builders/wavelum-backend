@@ -13,6 +13,31 @@ function verifySignature(req) {
   return signature === expected;
 }
 
+/**
+ * @swagger
+ * /api/v1/webhook/kyc:
+ *   post:
+ *     summary: Receive HMAC-verified KYC provider status webhook
+ *     tags: [identity]
+ *     parameters:
+ *       - in: header
+ *         name: x-signature
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: HMAC-SHA256 signature of the JSON request body
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/KycWebhookDto'
+ *     responses:
+ *       200:
+ *         description: Webhook processed successfully
+ *       401:
+ *         description: Invalid HMAC signature
+ */
 router.post('/webhook/kyc', async (req, res) => {
   try {
     if (!verifySignature(req)) {

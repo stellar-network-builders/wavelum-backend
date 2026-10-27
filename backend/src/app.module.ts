@@ -1,6 +1,12 @@
 import { Module } from '@nestjs/common';
 import { MetricsModule } from './metrics/metrics.module';
 import { WorkersModule } from './workers/workers.module';
+import { OpenApiSwaggerModule } from './swagger/swagger.module';
+import {
+  VaultsV1Controller,
+  VaultsV2Controller,
+  IdentityV1Controller,
+} from './controllers/vaults.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nestjs-redis/throttler-storage';
 import Redis from 'ioredis';
@@ -9,6 +15,7 @@ import Redis from 'ioredis';
   imports: [
     MetricsModule,
     WorkersModule,
+    OpenApiSwaggerModule,
     ThrottlerModule.forRoot({
       throttlers: [
         {
@@ -25,5 +32,6 @@ import Redis from 'ioredis';
       storage: new ThrottlerStorageRedisService(new Redis(process.env.REDIS_URL || 'redis://localhost:6379')),
     }),
   ],
+  controllers: [VaultsV1Controller, VaultsV2Controller, IdentityV1Controller],
 })
 export class AppModule {}

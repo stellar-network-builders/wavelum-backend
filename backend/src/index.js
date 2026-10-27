@@ -163,6 +163,11 @@ const {
   recordClaimComplianceMiddleware
 } = require('./middleware/rule144Compliance.middleware');
 
+// Apply API versioning (/api/v1/*, /api/v2/*) and RFC 8594 Deprecation/Sunset headers
+const { apiVersioningMiddleware } = require('./middleware/apiVersioning.middleware');
+const { authenticateAuditor } = require('./middleware/auditor.middleware');
+app.use(apiVersioningMiddleware);
+
 // Apply vault status middleware to all API routes
 app.use("/api", vaultStatusMiddleware);
 
@@ -172,6 +177,19 @@ app.use("/api/claims", vaultPauseMiddleware);
 app.use("/api/user", vaultPauseMiddleware);
 app.use("/api/admin/vault", vaultPauseMiddleware);
 
+// Expose OpenAPI 3.1 Swagger UI at /api/docs in development, staging, and test environments only,
+// gated behind auditor authentication middleware (auditor.middleware.js)
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/docs.json", authenticateAuditor, (_req, res) => {
+    res.json(swaggerSpecs);
+  });
+  app.use(
+    "/api/docs",
+    authenticateAuditor,
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpecs)
+  );
+}
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 const claimRateLimiter = rateLimit({

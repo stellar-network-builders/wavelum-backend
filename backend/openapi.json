@@ -1,0 +1,4557 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "info": {
+    "title": "Verinode Vesting Vault API",
+    "version": "1.0.0",
+    "description": "OpenAPI 3.1 documentation for the Verinode Vesting Vault system with versioned API paths (/api/v1, /api/v2) and RFC 8594 deprecation headers.",
+    "contact": {
+      "name": "Wavelum / Verinode API Team",
+      "url": "https://api.verinode.io/api/docs"
+    },
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api/v1",
+      "description": "Development v1 server"
+    },
+    {
+      "url": "http://localhost:3000/api/v2",
+      "description": "Development v2 server"
+    },
+    {
+      "url": "https://api.verinode.io/api/v1",
+      "description": "Production v1 server"
+    },
+    {
+      "url": "https://api.verinode.io/api/v2",
+      "description": "Production v2 server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Enter 'admin-token' or 'user-token' as the Bearer token for authentication"
+      },
+      "XUserAddress": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-user-address",
+        "description": "User wallet address for authentication (alternative to Bearer token)"
+      }
+    },
+    "schemas": {
+      "ShadowIndexingStatus": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Service name"
+          },
+          "currentIndex": {
+            "type": "number",
+            "description": "Current ledger index"
+          },
+          "processedLedgersCount": {
+            "type": "number",
+            "description": "Number of processed ledgers"
+          },
+          "processedTransactionsCount": {
+            "type": "number",
+            "description": "Number of processed transactions"
+          },
+          "isIndexing": {
+            "type": "boolean",
+            "description": "Whether indexing is active"
+          },
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Whether shadow-indexing is enabled"
+          },
+          "totalLedgersProcessed": {
+            "type": "number",
+            "description": "Total ledgers processed"
+          },
+          "totalTransactionsProcessed": {
+            "type": "number",
+            "description": "Total transactions processed"
+          },
+          "inconsistenciesDetected": {
+            "type": "number",
+            "description": "Number of inconsistencies detected"
+          },
+          "consistencyRate": {
+            "type": "string",
+            "description": "Current consistency rate percentage"
+          },
+          "lastSyncTime": {
+            "type": "string",
+            "description": "Last sync timestamp"
+          },
+          "validationCount": {
+            "type": "number",
+            "description": "Number of validations performed"
+          },
+          "criticalIssues": {
+            "type": "number",
+            "description": "Number of critical issues"
+          },
+          "warningIssues": {
+            "type": "number",
+            "description": "Number of warning issues"
+          }
+        }
+      },
+      "VaultRegistryEntry": {
+        "type": "object",
+        "properties": {
+          "contract_id": {
+            "type": "string",
+            "description": "Stellar contract address/hash"
+          },
+          "project_name": {
+            "type": "string",
+            "description": "Human-readable project name"
+          },
+          "creator_address": {
+            "type": "string",
+            "description": "Address of the vault creator"
+          },
+          "deployment_ledger": {
+            "type": "integer",
+            "description": "Ledger number when vault was deployed"
+          },
+          "deployment_transaction_hash": {
+            "type": "string",
+            "description": "Transaction hash of deployment"
+          },
+          "token_address": {
+            "type": "string",
+            "description": "Token address associated with vault"
+          },
+          "vault_type": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "cliff",
+              "dynamic"
+            ],
+            "description": "Type of vault contract"
+          },
+          "is_active": {
+            "type": "boolean",
+            "description": "Whether vault is currently active"
+          },
+          "discovered_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When vault was discovered by indexer"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata about the vault"
+          }
+        }
+      },
+      "Vault": {
+        "type": "object",
+        "required": [
+          "address",
+          "tokenAddress",
+          "ownerAddress"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Auto-generated unique identifier"
+          },
+          "address": {
+            "type": "string",
+            "description": "Smart contract address of the vault"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the vault"
+          },
+          "tokenAddress": {
+            "type": "string",
+            "description": "Address of the token being vested"
+          },
+          "ownerAddress": {
+            "type": "string",
+            "description": "Address of the vault owner"
+          },
+          "totalAmount": {
+            "type": "string",
+            "description": "Total amount of tokens in the vault"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+          }
+        },
+        "example": {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "address": "0x1234567890123456789012345678901234567890",
+          "name": "Employee Vesting Vault",
+          "tokenAddress": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+          "ownerAddress": "0x1111111111111111111111111111111111111111",
+          "totalAmount": "10000",
+          "createdAt": "2024-01-01T00:00:00.000Z",
+          "updatedAt": "2024-01-01T00:00:00.000Z"
+        }
+      },
+      "Beneficiary": {
+        "type": "object",
+        "required": [
+          "address",
+          "totalAllocated"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Auto-generated unique identifier"
+          },
+          "vaultId": {
+            "type": "string",
+            "description": "ID of the associated vault"
+          },
+          "address": {
+            "type": "string",
+            "description": "Address of the beneficiary"
+          },
+          "totalAllocated": {
+            "type": "string",
+            "description": "Total tokens allocated to the beneficiary"
+          },
+          "totalWithdrawn": {
+            "type": "string",
+            "description": "Total tokens withdrawn by the beneficiary"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+          }
+        },
+        "example": {
+          "id": "550e8400-e29b-41d4-a716-446655440001",
+          "vaultId": "550e8400-e29b-41d4-a716-446655440000",
+          "address": "0x2222222222222222222222222222222222222222",
+          "totalAllocated": "5000",
+          "totalWithdrawn": "1000",
+          "createdAt": "2024-01-01T00:00:00.000Z",
+          "updatedAt": "2024-01-02T00:00:00.000Z"
+        }
+      },
+      "SubSchedule": {
+        "type": "object",
+        "required": [
+          "vaultId",
+          "topUpAmount",
+          "cliffDuration",
+          "vestingDuration",
+          "startTimestamp",
+          "endTimestamp",
+          "transactionHash",
+          "blockNumber"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Auto-generated unique identifier"
+          },
+          "vaultId": {
+            "type": "string",
+            "description": "ID of the associated vault"
+          },
+          "topUpAmount": {
+            "type": "string",
+            "description": "Amount added during the top-up"
+          },
+          "cliffDuration": {
+            "type": "integer",
+            "description": "Duration of the cliff period in seconds"
+          },
+          "vestingDuration": {
+            "type": "integer",
+            "description": "Duration of the vesting period in seconds"
+          },
+          "startTimestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Start timestamp of the schedule"
+          },
+          "endTimestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "End timestamp of the schedule"
+          },
+          "transactionHash": {
+            "type": "string",
+            "description": "Hash of the top-up transaction"
+          },
+          "blockNumber": {
+            "type": "string",
+            "description": "Block number of the top-up transaction"
+          },
+          "amountWithdrawn": {
+            "type": "string",
+            "description": "Amount already withdrawn from this schedule"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+          }
+        },
+        "example": {
+          "id": "550e8400-e29b-41d4-a716-446655440002",
+          "vaultId": "550e8400-e29b-41d4-a716-446655440000",
+          "topUpAmount": "2000",
+          "cliffDuration": 86400,
+          "vestingDuration": 2592000,
+          "startTimestamp": "2024-01-01T00:00:00.000Z",
+          "endTimestamp": "2024-02-01T00:00:00.000Z",
+          "transactionHash": "0xabc123...",
+          "blockNumber": "1234567",
+          "amountWithdrawn": "0",
+          "createdAt": "2024-01-01T00:00:00.000Z",
+          "updatedAt": "2024-01-01T00:00:00.000Z"
+        }
+      },
+      "Claim": {
+        "type": "object",
+        "required": [
+          "userAddress",
+          "tokenAddress",
+          "amountClaimed",
+          "transactionHash",
+          "blockNumber"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Auto-generated unique identifier"
+          },
+          "userAddress": {
+            "type": "string",
+            "description": "Address of the user claiming tokens"
+          },
+          "tokenAddress": {
+            "type": "string",
+            "description": "Address of the claimed token"
+          },
+          "amountClaimed": {
+            "type": "string",
+            "description": "Amount of tokens claimed"
+          },
+          "claimTimestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of the claim"
+          },
+          "transactionHash": {
+            "type": "string",
+            "description": "Hash of the claim transaction"
+          },
+          "blockNumber": {
+            "type": "string",
+            "description": "Block number of the claim transaction"
+          },
+          "priceAtClaimUsd": {
+            "type": "string",
+            "description": "Price of the token at the time of claim in USD"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+          }
+        },
+        "example": {
+          "id": "550e8400-e29b-41d4-a716-446655440003",
+          "userAddress": "0x2222222222222222222222222222222222222222",
+          "tokenAddress": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+          "amountClaimed": "100",
+          "claimTimestamp": "2024-01-01T00:00:00.000Z",
+          "transactionHash": "0xdef456...",
+          "blockNumber": "1234568",
+          "priceAtClaimUsd": "1.50",
+          "createdAt": "2024-01-01T00:00:00.000Z",
+          "updatedAt": "2024-01-01T00:00:00.000Z"
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "description": "Response data"
+          }
+        },
+        "example": {
+          "success": true,
+          "data": {}
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message",
+            "example": "Error message description"
+          }
+        }
+      },
+      "VaultDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "address",
+          "name",
+          "tokenAddress",
+          "ownerAddress",
+          "totalAmount",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the vesting vault",
+            "examples": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          },
+          "address": {
+            "type": "string",
+            "description": "Smart contract address of the vault on Stellar Soroban or EVM",
+            "examples": [
+              "CA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUWDA"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable vault name",
+            "examples": [
+              "Core Contributors Vesting Vault"
+            ]
+          },
+          "tokenAddress": {
+            "type": "string",
+            "description": "Token contract address being vested",
+            "examples": [
+              "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
+            ]
+          },
+          "ownerAddress": {
+            "type": "string",
+            "description": "Vault administrator address",
+            "examples": [
+              "GBYWLISGOUWQ43VQEGXX6KRGDZ3CKAFFK3JXVLXKDO5TIFJUJ3OHJYOZ"
+            ]
+          },
+          "totalAmount": {
+            "type": "string",
+            "description": "Total token allocation in base units",
+            "examples": [
+              "1000000000000"
+            ]
+          },
+          "liquidityStatus": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "healthy",
+              "warning",
+              "critical"
+            ],
+            "description": "Liquidity status of the vault",
+            "examples": [
+              "healthy"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp in ISO 8601 format",
+            "examples": [
+              "2026-01-01T00:00:00.000Z"
+            ]
+          }
+        }
+      },
+      "CreateVaultDto": {
+        "type": "object",
+        "required": [
+          "address",
+          "name",
+          "tokenAddress",
+          "ownerAddress",
+          "totalAmount"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "Smart contract address of the vault",
+            "examples": [
+              "CA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUWDA"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the vault",
+            "examples": [
+              "Core Contributors Vesting Vault"
+            ]
+          },
+          "tokenAddress": {
+            "type": "string",
+            "description": "Token contract address being vested",
+            "examples": [
+              "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
+            ]
+          },
+          "ownerAddress": {
+            "type": "string",
+            "description": "Vault administrator address",
+            "examples": [
+              "GBYWLISGOUWQ43VQEGXX6KRGDZ3CKAFFK3JXVLXKDO5TIFJUJ3OHJYOZ"
+            ]
+          },
+          "totalAmount": {
+            "type": "string",
+            "description": "Total token allocation in base units",
+            "examples": [
+              "1000000000000"
+            ]
+          }
+        }
+      },
+      "ClaimRequestDto": {
+        "type": "object",
+        "required": [
+          "beneficiaryAddress",
+          "vaultId",
+          "amount"
+        ],
+        "properties": {
+          "beneficiaryAddress": {
+            "type": "string",
+            "description": "Beneficiary Stellar or EVM wallet address",
+            "examples": [
+              "GBYWLISGOUWQ43VQEGXX6KRGDZ3CKAFFK3JXVLXKDO5TIFJUJ3OHJYOZ"
+            ]
+          },
+          "vaultId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Vault identifier to claim from",
+            "examples": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "description": "Amount of vested tokens to claim",
+            "examples": [
+              "2500000000"
+            ]
+          }
+        }
+      },
+      "ClaimResponseDto": {
+        "type": "object",
+        "required": [
+          "success",
+          "transactionHash",
+          "claimedAmount"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the claim succeeded",
+            "examples": [
+              true
+            ]
+          },
+          "transactionHash": {
+            "type": "string",
+            "description": "On-chain transaction hash of the processed claim",
+            "examples": [
+              "a8f1b3c9e04f2a1d67e8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0"
+            ]
+          },
+          "claimedAmount": {
+            "type": "string",
+            "description": "Claimed token amount in base units",
+            "examples": [
+              "2500000000"
+            ]
+          }
+        }
+      },
+      "IdentityLinkKeyDto": {
+        "type": "object",
+        "required": [
+          "profileId",
+          "publicKey"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "description": "Identity profile identifier",
+            "examples": [
+              "prof_01HXYZ987654321"
+            ]
+          },
+          "publicKey": {
+            "type": "string",
+            "description": "Stellar public key to link to the identity profile",
+            "examples": [
+              "GBYWLISGOUWQ43VQEGXX6KRGDZ3CKAFFK3JXVLXKDO5TIFJUJ3OHJYOZ"
+            ]
+          },
+          "vestingSchedule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional vesting schedule identifier associated with the key",
+            "examples": [
+              "sched_101"
+            ]
+          }
+        }
+      },
+      "KycEvaluateDto": {
+        "type": "object",
+        "required": [
+          "profileId",
+          "vestingValueUsd",
+          "basicChecksPassed"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "description": "Identity profile identifier to evaluate",
+            "examples": [
+              "prof_01HXYZ987654321"
+            ]
+          },
+          "vestingValueUsd": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Total USD value of the vesting grant under evaluation",
+            "examples": [
+              50000
+            ]
+          },
+          "basicChecksPassed": {
+            "type": "boolean",
+            "description": "Whether baseline sanction and identity checks passed",
+            "examples": [
+              true
+            ]
+          }
+        }
+      },
+      "KycWebhookDto": {
+        "type": "object",
+        "required": [
+          "applicantId",
+          "reviewStatus"
+        ],
+        "properties": {
+          "applicantId": {
+            "type": "string",
+            "description": "External KYC provider applicant identifier",
+            "examples": [
+              "appl_99482716"
+            ]
+          },
+          "reviewStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed",
+              "rejected"
+            ],
+            "description": "Review status emitted by the KYC provider",
+            "examples": [
+              "completed"
+            ]
+          }
+        }
+      },
+      "ApiErrorResponseDto": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Indicates failed request execution",
+            "examples": [
+              false
+            ]
+          },
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message",
+            "examples": [
+              "Invalid or missing authentication credentials"
+            ]
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Machine-readable error code",
+            "examples": [
+              "UNAUTHORIZED"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/identity/link-key": {
+      "post": {
+        "summary": "Link a Stellar public key to an identity profile",
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityLinkKeyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Key linked successfully"
+          },
+          "400": {
+            "description": "Invalid identity profile or key parameters"
+          }
+        }
+      }
+    },
+    "/api/v1/identity/unlink-key": {
+      "delete": {
+        "summary": "Unlink a Stellar public key from an identity profile",
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityLinkKeyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Key unlinked successfully"
+          },
+          "400": {
+            "description": "Invalid request parameters"
+          }
+        }
+      }
+    },
+    "/api/v1/identity/{profileId}/keys": {
+      "get": {
+        "summary": "List all public keys linked to an identity profile",
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Identity profile identifier"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of linked public keys"
+          }
+        }
+      }
+    },
+    "/api/v1/identity/key/{publicKey}/profile": {
+      "get": {
+        "summary": "Resolve identity profile by Stellar public key",
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "publicKey",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stellar public key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved identity profile"
+          },
+          "404": {
+            "description": "Profile not found"
+          }
+        }
+      }
+    },
+    "/api/v1/kyc/evaluate": {
+      "post": {
+        "summary": "Evaluate KYC risk level for a vesting schedule beneficiary",
+        "tags": [
+          "identity"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KycEvaluateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "KYC risk evaluation result"
+          },
+          "500": {
+            "description": "Evaluation service error"
+          }
+        }
+      }
+    },
+    "/api/v1/webhook/kyc": {
+      "post": {
+        "summary": "Receive HMAC-verified KYC provider status webhook",
+        "tags": [
+          "identity"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-signature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "HMAC-SHA256 signature of the JSON request body"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KycWebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook processed successfully"
+          },
+          "401": {
+            "description": "Invalid HMAC signature"
+          }
+        }
+      }
+    },
+    "/api/batch-claims/process": {
+      "post": {
+        "summary": "Process batch claims for multiple beneficiaries",
+        "description": "Bundle multiple claim requests into a single atomic transaction for gas optimization",
+        "tags": [
+          "Batch Claims"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "vaultAddress",
+                  "beneficiaryAddresses"
+                ],
+                "properties": {
+                  "vaultAddress": {
+                    "type": "string",
+                    "description": "Vault contract address"
+                  },
+                  "beneficiaryAddresses": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "List of beneficiary addresses to process claims for"
+                  },
+                  "requireConsent": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Whether to require auto-claim consent"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch claims processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "totalProcessed": {
+                          "type": "integer"
+                        },
+                        "totalSuccessful": {
+                          "type": "integer"
+                        },
+                        "totalFailed": {
+                          "type": "integer"
+                        },
+                        "totalAmountClaimed": {
+                          "type": "string"
+                        },
+                        "successful": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "beneficiaryAddress": {
+                                "type": "string"
+                              },
+                              "amountClaimed": {
+                                "type": "string"
+                              },
+                              "transactionHash": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "failed": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or batch size exceeded"
+          },
+          "403": {
+            "description": "Admin lacks permission"
+          }
+        }
+      }
+    },
+    "/api/batch-claims/consent/enable": {
+      "post": {
+        "summary": "Enable auto-claim consent",
+        "description": "Allow automated batch claim processing for your tokens",
+        "tags": [
+          "Batch Claims"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "vaultAddress"
+                ],
+                "properties": {
+                  "vaultAddress": {
+                    "type": "string"
+                  },
+                  "maxClaimPercentage": {
+                    "type": "number",
+                    "default": 100,
+                    "description": "Maximum percentage of vested amount that can be auto-claimed"
+                  },
+                  "minClaimAmount": {
+                    "type": "string",
+                    "description": "Minimum amount threshold for auto-claim"
+                  },
+                  "claimFrequency": {
+                    "type": "string",
+                    "enum": [
+                      "immediate",
+                      "daily",
+                      "weekly",
+                      "monthly"
+                    ],
+                    "default": "immediate"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Additional consent metadata"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Auto-claim consent enabled"
+          },
+          "400": {
+            "description": "Invalid parameters"
+          }
+        }
+      }
+    },
+    "/api/batch-claims/consent/disable": {
+      "post": {
+        "summary": "Disable auto-claim consent",
+        "description": "Opt-out of automated batch claim processing",
+        "tags": [
+          "Batch Claims"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "vaultAddress"
+                ],
+                "properties": {
+                  "vaultAddress": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Auto-claim consent disabled"
+          }
+        }
+      }
+    },
+    "/api/batch-claims/eligibility": {
+      "get": {
+        "summary": "Get batch claim eligibility",
+        "description": "Check if a beneficiary is eligible for batch claims",
+        "tags": [
+          "Batch Claims"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "vaultAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Vault address"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eligibility information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "eligible": {
+                          "type": "boolean"
+                        },
+                        "hasConsent": {
+                          "type": "boolean"
+                        },
+                        "claimableAmount": {
+                          "type": "string"
+                        },
+                        "consentSettings": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/batch-claims/consent/status": {
+      "get": {
+        "summary": "Get auto-claim consent status",
+        "description": "Check current auto-claim consent settings",
+        "tags": [
+          "Batch Claims"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "vaultAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Vault address"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consent status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "isEnabled": {
+                          "type": "boolean"
+                        },
+                        "maxClaimPercentage": {
+                          "type": "number"
+                        },
+                        "minClaimAmount": {
+                          "type": "string"
+                        },
+                        "claimFrequency": {
+                          "type": "string"
+                        },
+                        "lastClaimedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contract-verification/verify": {
+      "post": {
+        "summary": "Verify if a contract is approved and safe to link",
+        "description": "Verifies that a contract's WASM hash matches an approved version in the registry",
+        "tags": [
+          "Contract Verification"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "contractAddress",
+                  "wasmHash"
+                ],
+                "properties": {
+                  "contractAddress": {
+                    "type": "string",
+                    "description": "Stellar contract address to verify"
+                  },
+                  "wasmHash": {
+                    "type": "string",
+                    "description": "SHA256 hash of the contract WASM file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "valid": {
+                          "type": "boolean"
+                        },
+                        "contractAddress": {
+                          "type": "string"
+                        },
+                        "projectName": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "auditTimestamp": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "403": {
+            "description": "Contract is blacklisted or not approved"
+          }
+        }
+      }
+    },
+    "/api/contract-verification/register": {
+      "post": {
+        "summary": "Register a new approved contract",
+        "description": "Add a contract to the approved registry after security audit",
+        "tags": [
+          "Contract Verification"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "contractAddress",
+                  "wasmHash",
+                  "projectName",
+                  "version",
+                  "auditorAddress"
+                ],
+                "properties": {
+                  "contractAddress": {
+                    "type": "string"
+                  },
+                  "wasmHash": {
+                    "type": "string"
+                  },
+                  "projectName": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "auditorAddress": {
+                    "type": "string"
+                  },
+                  "auditReportUrl": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Contract registered successfully"
+          },
+          "400": {
+            "description": "Invalid request or contract already exists"
+          }
+        }
+      }
+    },
+    "/api/contract-verification/blacklist": {
+      "post": {
+        "summary": "Blacklist a malicious contract",
+        "description": "Mark a contract as malicious/impersonation to protect users",
+        "tags": [
+          "Contract Verification"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "contractAddress",
+                  "reason"
+                ],
+                "properties": {
+                  "contractAddress": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contract blacklisted successfully"
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        }
+      }
+    },
+    "/api/contract-verification/list": {
+      "get": {
+        "summary": "Get list of approved contracts",
+        "description": "Retrieve all approved contracts from the registry",
+        "tags": [
+          "Contract Verification"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectName",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by project name"
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of approved contracts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contract-verification/{contractAddress}": {
+      "get": {
+        "summary": "Get contract details",
+        "description": "Retrieve details of a specific contract by address",
+        "tags": [
+          "Contract Verification"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contractAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Contract address"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contract details"
+          },
+          "404": {
+            "description": "Contract not found"
+          }
+        }
+      }
+    },
+    "/api/partners/register": {
+      "post": {
+        "summary": "Register a new institutional partner",
+        "description": "Create a new partner account with tiered API access",
+        "tags": [
+          "Partner Management"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "partnerName",
+                  "contactEmail"
+                ],
+                "properties": {
+                  "partnerName": {
+                    "type": "string"
+                  },
+                  "partnerTier": {
+                    "type": "string",
+                    "enum": [
+                      "basic",
+                      "silver",
+                      "gold",
+                      "platinum",
+                      "enterprise"
+                    ],
+                    "default": "basic"
+                  },
+                  "contactEmail": {
+                    "type": "string"
+                  },
+                  "contactAddress": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Partner registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "partner_name": {
+                          "type": "string"
+                        },
+                        "api_key": {
+                          "type": "string"
+                        },
+                        "api_secret": {
+                          "type": "string"
+                        },
+                        "partner_tier": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/partners/list": {
+      "get": {
+        "summary": "Get all active partners",
+        "description": "Retrieve list of all active institutional partners",
+        "tags": [
+          "Partner Management"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of active partners",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/partners/report/{partnerId}": {
+      "get": {
+        "summary": "Generate monthly usage report for a partner",
+        "description": "Get detailed usage statistics and analytics for a specific partner",
+        "tags": [
+          "Partner Management"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partnerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partner ID"
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            },
+            "description": "Billing period (YYYY-MM), defaults to current month"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Monthly usage report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "partner": {
+                          "type": "object"
+                        },
+                        "billingPeriod": {
+                          "type": "string"
+                        },
+                        "summary": {
+                          "type": "object"
+                        },
+                        "dailyBreakdown": {
+                          "type": "array"
+                        },
+                        "topEndpoints": {
+                          "type": "array"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/partners/suspend/{partnerId}": {
+      "post": {
+        "summary": "Suspend a partner",
+        "description": "Temporarily suspend partner access",
+        "tags": [
+          "Partner Management"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partnerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Partner suspended successfully"
+          },
+          "404": {
+            "description": "Partner not found"
+          }
+        }
+      }
+    },
+    "/api/partners/reactivate/{partnerId}": {
+      "post": {
+        "summary": "Reactivate a suspended partner",
+        "description": "Restore access for a previously suspended partner",
+        "tags": [
+          "Partner Management"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partnerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Partner reactivated successfully"
+          }
+        }
+      }
+    },
+    "/api/partners/tier/{partnerId}": {
+      "put": {
+        "summary": "Update partner tier",
+        "description": "Upgrade or downgrade partner tier level",
+        "tags": [
+          "Partner Management"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partnerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tier"
+                ],
+                "properties": {
+                  "tier": {
+                    "type": "string",
+                    "enum": [
+                      "basic",
+                      "silver",
+                      "gold",
+                      "platinum",
+                      "enterprise"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tier updated successfully"
+          }
+        }
+      }
+    },
+    "/api/partners/regenerate-key/{partnerId}": {
+      "post": {
+        "summary": "Regenerate API key",
+        "description": "Generate new API credentials for a partner",
+        "tags": [
+          "Partner Management"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partnerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "New API credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "api_key": {
+                          "type": "string"
+                        },
+                        "api_secret": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shadow-indexing/status": {
+      "get": {
+        "summary": "Get shadow-indexing service status",
+        "tags": [
+          "Shadow Indexing"
+        ],
+        "responses": {
+          "200": {
+            "description": "Shadow-indexing service status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ShadowIndexingStatus"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shadow-indexing/start": {
+      "post": {
+        "summary": "Start shadow-indexing service",
+        "tags": [
+          "Shadow Indexing"
+        ],
+        "responses": {
+          "200": {
+            "description": "Shadow-indexing service started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shadow-indexing/stop": {
+      "post": {
+        "summary": "Stop shadow-indexing service",
+        "tags": [
+          "Shadow Indexing"
+        ],
+        "responses": {
+          "200": {
+            "description": "Shadow-indexing service stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shadow-indexing/reset": {
+      "post": {
+        "summary": "Reset shadow-indexing service",
+        "tags": [
+          "Shadow Indexing"
+        ],
+        "responses": {
+          "200": {
+            "description": "Shadow-indexing service reset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shadow-indexing/consistency-check": {
+      "post": {
+        "summary": "Trigger manual consistency check",
+        "tags": [
+          "Shadow Indexing"
+        ],
+        "responses": {
+          "200": {
+            "description": "Consistency check results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string"
+                        },
+                        "validationDuration": {
+                          "type": "number"
+                        },
+                        "totalLedgers": {
+                          "type": "number"
+                        },
+                        "totalInconsistencies": {
+                          "type": "number"
+                        },
+                        "criticalIssues": {
+                          "type": "number"
+                        },
+                        "warningIssues": {
+                          "type": "number"
+                        },
+                        "validationPassed": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shadow-indexing/ledgers": {
+      "get": {
+        "summary": "Get processed ledgers",
+        "tags": [
+          "Shadow Indexing"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "Maximum number of ledgers to return"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "Number of ledgers to skip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Processed ledgers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ledgers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shadow-indexing/config": {
+      "get": {
+        "summary": "Get shadow-indexing configuration",
+        "tags": [
+          "Shadow Indexing"
+        ],
+        "responses": {
+          "200": {
+            "description": "Shadow-indexing configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "indexingInterval": {
+                          "type": "number"
+                        },
+                        "validationInterval": {
+                          "type": "number"
+                        },
+                        "criticalInconsistencyCount": {
+                          "type": "number"
+                        },
+                        "warningInconsistencyCount": {
+                          "type": "number"
+                        },
+                        "failoverThreshold": {
+                          "type": "number"
+                        },
+                        "autoFailover": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shadow-indexing/health": {
+      "get": {
+        "summary": "Get shadow-indexing health check",
+        "tags": [
+          "Shadow Indexing"
+        ],
+        "responses": {
+          "200": {
+            "description": "Shadow-indexing health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "healthy",
+                            "warning",
+                            "critical"
+                          ]
+                        },
+                        "consistencyRate": {
+                          "type": "string"
+                        },
+                        "lastSyncTime": {
+                          "type": "string"
+                        },
+                        "isIndexing": {
+                          "type": "boolean"
+                        },
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/registry/vaults/by-creator/{creatorAddress}": {
+      "get": {
+        "summary": "List all vaults created by a specific address",
+        "tags": [
+          "Vault Registry"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "creatorAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stellar address of the vault creator"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            },
+            "description": "Maximum number of results to return"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "Number of results to skip"
+          },
+          {
+            "in": "query",
+            "name": "includeInactive",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Include inactive vaults in results"
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "discovered_at",
+                "deployment_ledger",
+                "project_name"
+              ],
+              "default": "discovered_at"
+            },
+            "description": "Field to sort by"
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASC",
+                "DESC"
+              ],
+              "default": "DESC"
+            },
+            "description": "Sort order"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved vaults by creator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "vaults": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/VaultRegistryEntry"
+                          }
+                        },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            },
+                            "limit": {
+                              "type": "integer"
+                            },
+                            "offset": {
+                              "type": "integer"
+                            },
+                            "has_more": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/registry/vaults/search": {
+      "get": {
+        "summary": "Search vaults by project name",
+        "tags": [
+          "Vault Registry"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project name to search for (partial match)"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            },
+            "description": "Maximum number of results to return"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "Number of results to skip"
+          },
+          {
+            "in": "query",
+            "name": "includeInactive",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Include inactive vaults in results"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully searched vaults"
+          },
+          "400": {
+            "description": "Missing or invalid parameters"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/registry/vaults": {
+      "get": {
+        "summary": "Get all vaults in the registry (for ecosystem analytics)",
+        "tags": [
+          "Vault Registry"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 100
+            },
+            "description": "Maximum number of results to return"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "Number of results to skip"
+          },
+          {
+            "in": "query",
+            "name": "includeInactive",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Include inactive vaults in results"
+          },
+          {
+            "in": "query",
+            "name": "vaultType",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "cliff",
+                "dynamic"
+              ]
+            },
+            "description": "Filter by vault type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved all vaults"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/registry/vaults/{contractId}": {
+      "get": {
+        "summary": "Get specific vault details by contract ID",
+        "tags": [
+          "Vault Registry"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contractId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stellar contract ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved vault details"
+          },
+          "404": {
+            "description": "Vault not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/registry/stats": {
+      "get": {
+        "summary": "Get registry statistics for ecosystem analytics",
+        "tags": [
+          "Vault Registry"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved registry statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total_vaults": {
+                          "type": "integer"
+                        },
+                        "active_vaults": {
+                          "type": "integer"
+                        },
+                        "unique_creators": {
+                          "type": "integer"
+                        },
+                        "vaults_by_type": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "recent_deployments": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Health check endpoint",
+        "description": "Returns a simple message confirming the API is running",
+        "tags": [
+          "General"
+        ],
+        "responses": {
+          "200": {
+            "description": "API is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Vesting Vault API is running!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check endpoint",
+        "description": "Returns the health status of the service",
+        "tags": [
+          "General"
+        ],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2024-01-01T00:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/claims": {
+      "post": {
+        "summary": "Process a new claim",
+        "description": "Creates a record of a token claim",
+        "tags": [
+          "Claims"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "XUserAddress": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "userAddress",
+                  "tokenAddress",
+                  "amountClaimed",
+                  "transactionHash",
+                  "blockNumber"
+                ],
+                "properties": {
+                  "userAddress": {
+                    "type": "string",
+                    "description": "Address of the user claiming tokens"
+                  },
+                  "tokenAddress": {
+                    "type": "string",
+                    "description": "Address of the token being claimed"
+                  },
+                  "amountClaimed": {
+                    "type": "string",
+                    "description": "Amount of tokens being claimed"
+                  },
+                  "claimTimestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Timestamp of the claim (defaults to now)"
+                  },
+                  "transactionHash": {
+                    "type": "string",
+                    "description": "Transaction hash of the claim"
+                  },
+                  "blockNumber": {
+                    "type": "string",
+                    "description": "Block number of the claim transaction"
+                  },
+                  "priceAtClaimUsd": {
+                    "type": "string",
+                    "description": "Price of the token at the time of claim in USD"
+                  }
+                },
+                "example": {
+                  "userAddress": "0x2222222222222222222222222222222222222222",
+                  "tokenAddress": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+                  "amountClaimed": "100",
+                  "transactionHash": "0xdef456...",
+                  "blockNumber": "1234568",
+                  "priceAtClaimUsd": "1.50"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Claim processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": "550e8400-e29b-41d4-a716-446655440003",
+                    "userAddress": "0x2222222222222222222222222222222222222222",
+                    "amountClaimed": "100"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/claims/batch": {
+      "post": {
+        "summary": "Process multiple claims in batch",
+        "description": "Creates records for multiple token claims in a single request",
+        "tags": [
+          "Claims"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "XUserAddress": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "claims": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "userAddress",
+                        "tokenAddress",
+                        "amountClaimed",
+                        "transactionHash",
+                        "blockNumber"
+                      ],
+                      "properties": {
+                        "userAddress": {
+                          "type": "string",
+                          "description": "Address of the user claiming tokens"
+                        },
+                        "tokenAddress": {
+                          "type": "string",
+                          "description": "Address of the token being claimed"
+                        },
+                        "amountClaimed": {
+                          "type": "string",
+                          "description": "Amount of tokens being claimed"
+                        },
+                        "claimTimestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Timestamp of the claim (defaults to now)"
+                        },
+                        "transactionHash": {
+                          "type": "string",
+                          "description": "Transaction hash of the claim"
+                        },
+                        "blockNumber": {
+                          "type": "string",
+                          "description": "Block number of the claim transaction"
+                        },
+                        "priceAtClaimUsd": {
+                          "type": "string",
+                          "description": "Price of the token at the time of claim in USD"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "claims": [
+                    {
+                      "userAddress": "0x2222222222222222222222222222222222222222",
+                      "tokenAddress": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+                      "amountClaimed": "100",
+                      "transactionHash": "0xdef456...",
+                      "blockNumber": "1234568",
+                      "priceAtClaimUsd": "1.50"
+                    },
+                    {
+                      "userAddress": "0x3333333333333333333333333333333333333333",
+                      "tokenAddress": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+                      "amountClaimed": "200",
+                      "transactionHash": "0xghi789...",
+                      "blockNumber": "1234569",
+                      "priceAtClaimUsd": "1.55"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Batch claims processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "processedCount": {
+                          "type": "integer",
+                          "example": 2
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "success": {
+                                "type": "boolean"
+                              },
+                              "claimId": {
+                                "type": "string"
+                              },
+                              "error": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/claims/{userAddress}/realized-gains": {
+      "get": {
+        "summary": "Get realized gains for a user",
+        "description": "Calculates and returns the realized gains for a specific user",
+        "tags": [
+          "Claims"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "XUserAddress": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Address of the user to get realized gains for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Realized gains retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "userAddress": {
+                          "type": "string",
+                          "example": "0x2222222222222222222222222222222222222222"
+                        },
+                        "realizedGains": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tokenAddress": {
+                                "type": "string"
+                              },
+                              "totalClaimed": {
+                                "type": "string"
+                              },
+                              "totalValueUsd": {
+                                "type": "string"
+                              },
+                              "averagePriceUsd": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/revoke": {
+      "post": {
+        "summary": "Revoke admin access",
+        "description": "Revokes administrative access for a specified address",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "adminAddress",
+                  "targetAddress"
+                ],
+                "properties": {
+                  "adminAddress": {
+                    "type": "string",
+                    "description": "Address of the admin initiating the revocation"
+                  },
+                  "targetAddress": {
+                    "type": "string",
+                    "description": "Address of the admin to revoke"
+                  }
+                },
+                "example": {
+                  "adminAddress": "0x1234567890123456789012345678901234567890",
+                  "targetAddress": "0x9876543210987654321098765432109876543210"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Admin access revoked successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "message": "Admin access revoked successfully"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/create": {
+      "post": {
+        "summary": "Create new admin",
+        "description": "Creates a new administrative user",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "adminAddress",
+                  "newAdminAddress"
+                ],
+                "properties": {
+                  "adminAddress": {
+                    "type": "string",
+                    "description": "Address of the admin initiating the creation"
+                  },
+                  "newAdminAddress": {
+                    "type": "string",
+                    "description": "Address of the new admin to create"
+                  }
+                },
+                "example": {
+                  "adminAddress": "0x1234567890123456789012345678901234567890",
+                  "newAdminAddress": "0x9876543210987654321098765432109876543210"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New admin created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "message": "New admin created successfully"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/transfer": {
+      "post": {
+        "summary": "Transfer vault ownership",
+        "description": "Transfers ownership of a vault to a new address",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "adminAddress",
+                  "vaultAddress",
+                  "newOwnerAddress"
+                ],
+                "properties": {
+                  "adminAddress": {
+                    "type": "string",
+                    "description": "Address of the admin initiating the transfer"
+                  },
+                  "vaultAddress": {
+                    "type": "string",
+                    "description": "Address of the vault to transfer"
+                  },
+                  "newOwnerAddress": {
+                    "type": "string",
+                    "description": "Address of the new owner"
+                  }
+                },
+                "example": {
+                  "adminAddress": "0x1234567890123456789012345678901234567890",
+                  "vaultAddress": "0x1234567890123456789012345678901234567890",
+                  "newOwnerAddress": "0x9876543210987654321098765432109876543210"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Vault ownership transferred successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "message": "Vault ownership transferred successfully"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/audit-logs": {
+      "get": {
+        "summary": "Get audit logs",
+        "description": "Retrieves audit logs for administrative actions",
+        "tags": [
+          "Admin"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            },
+            "description": "Maximum number of logs to return"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "Number of logs to skip"
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Filter logs after this date"
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Filter logs before this date"
+          },
+          {
+            "in": "query",
+            "name": "actionType",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter logs by action type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit logs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "logs": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "action": {
+                                "type": "string"
+                              },
+                              "actor": {
+                                "type": "string"
+                              },
+                              "target": {
+                                "type": "string"
+                              },
+                              "timestamp": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "details": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        },
+                        "totalCount": {
+                          "type": "integer",
+                          "example": 100
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 50
+                        },
+                        "offset": {
+                          "type": "integer",
+                          "example": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/user/{address}/portfolio": {
+      "get": {
+        "summary": "Get user portfolio",
+        "description": "Retrieves the portfolio summary for a specific user address",
+        "tags": [
+          "Portfolio"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "XUserAddress": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Address of the user to get portfolio for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User portfolio retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_locked": {
+                      "type": "number",
+                      "example": 100
+                    },
+                    "total_claimable": {
+                      "type": "number",
+                      "example": 15
+                    },
+                    "vaults": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "example": "advisor"
+                          },
+                          "locked": {
+                            "type": "number",
+                            "example": 80
+                          },
+                          "claimable": {
+                            "type": "number",
+                            "example": 15
+                          }
+                        }
+                      }
+                    },
+                    "address": {
+                      "type": "string",
+                      "example": "0x2222222222222222222222222222222222222222"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graphql": {
+      "get": {
+        "summary": "GraphQL Playground",
+        "description": "Access the GraphQL Playground interface for testing queries and mutations",
+        "tags": [
+          "GraphQL"
+        ],
+        "responses": {
+          "200": {
+            "description": "GraphQL Playground interface",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string",
+                  "example": "<html>GraphQL Playground HTML content</html>"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Execute GraphQL operations",
+        "description": "Execute GraphQL queries, mutations, or subscriptions",
+        "tags": [
+          "GraphQL"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "XUserAddress": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "GraphQL query, mutation, or subscription",
+                    "example": "query { vault(address: \"0x...\") { id name address } }"
+                  },
+                  "variables": {
+                    "type": "object",
+                    "description": "Variables for the GraphQL operation"
+                  },
+                  "operationName": {
+                    "type": "string",
+                    "description": "Name of the operation to execute"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "GraphQL operation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "description": "Results of the GraphQL operation"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "message": {
+                            "type": "string"
+                          },
+                          "locations": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "line": {
+                                  "type": "integer"
+                                },
+                                "column": {
+                                  "type": "integer"
+                                }
+                              }
+                            }
+                          },
+                          "path": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/org/{address}": {
+      "get": {
+        "summary": "Get organization info by admin address",
+        "description": "Retrieves organization metadata (logo, website, discord) by admin address",
+        "tags": [
+          "Organization"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Admin address to retrieve organization info for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization info retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "Organization ID"
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "Organization name"
+                        },
+                        "logo_url": {
+                          "type": "string",
+                          "description": "URL to organization logo"
+                        },
+                        "website_url": {
+                          "type": "string",
+                          "description": "URL to organization website"
+                        },
+                        "discord_url": {
+                          "type": "string",
+                          "description": "URL to organization Discord"
+                        },
+                        "admin_address": {
+                          "type": "string",
+                          "description": "Admin address linked to this organization"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Creation timestamp"
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Last update timestamp"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "name": "Acme Corp",
+                    "logo_url": "https://acme.com/logo.png",
+                    "website_url": "https://acme.com",
+                    "discord_url": "https://discord.gg/acme",
+                    "admin_address": "0x1234567890123456789012345678901234567890",
+                    "created_at": "2024-01-01T00:00:00.000Z",
+                    "updated_at": "2024-01-01T00:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vaults": {
+      "post": {
+        "summary": "Create a new vault",
+        "tags": [
+          "Vaults"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "address",
+                  "token_address",
+                  "owner_address"
+                ],
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "token_address": {
+                    "type": "string"
+                  },
+                  "owner_address": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "beneficiaries": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "allocation": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Vault created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vaults/{vaultAddress}/top-up": {
+      "post": {
+        "summary": "Process a top-up",
+        "tags": [
+          "Vaults"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vaultAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "amount",
+                  "transaction_hash"
+                ],
+                "properties": {
+                  "amount": {
+                    "type": "string"
+                  },
+                  "transaction_hash": {
+                    "type": "string"
+                  },
+                  "cliff_duration_seconds": {
+                    "type": "integer"
+                  },
+                  "vesting_duration_seconds": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Top-up processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vaults/{vaultAddress}/schedule": {
+      "get": {
+        "summary": "Get vesting schedule",
+        "tags": [
+          "Vaults"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vaultAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vaults/{vaultAddress}/{beneficiaryAddress}/withdrawable": {
+      "get": {
+        "summary": "Get withdrawable amount",
+        "tags": [
+          "Vaults"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vaultAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "beneficiaryAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "timestamp",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Amount retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vaults/{vaultAddress}/{beneficiaryAddress}/withdraw": {
+      "post": {
+        "summary": "Process withdrawal",
+        "tags": [
+          "Vaults"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vaultAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "beneficiaryAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "amount",
+                  "transaction_hash"
+                ],
+                "properties": {
+                  "amount": {
+                    "type": "string"
+                  },
+                  "transaction_hash": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Withdrawal processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vaults/{vaultAddress}/summary": {
+      "get": {
+        "summary": "Get vault summary",
+        "tags": [
+          "Vaults"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vaultAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Summary retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/delegate/set": {
+      "post": {
+        "summary": "Set delegate",
+        "tags": [
+          "Vaults"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "vaultId",
+                  "ownerAddress",
+                  "delegateAddress"
+                ],
+                "properties": {
+                  "vaultId": {
+                    "type": "string"
+                  },
+                  "ownerAddress": {
+                    "type": "string"
+                  },
+                  "delegateAddress": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Delegate set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/delegate/claim": {
+      "post": {
+        "summary": "Delegate claim",
+        "tags": [
+          "Vaults"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "delegateAddress",
+                  "vaultAddress",
+                  "releaseAmount"
+                ],
+                "properties": {
+                  "delegateAddress": {
+                    "type": "string"
+                  },
+                  "vaultAddress": {
+                    "type": "string"
+                  },
+                  "releaseAmount": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens claimed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/delegate/{vaultAddress}/info": {
+      "get": {
+        "summary": "Get delegate info",
+        "tags": [
+          "Vaults"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vaultAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Info retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vaults": {
+      "get": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "List vesting vaults (v1 — deprecated in favor of v2 cursor pagination)",
+        "description": "Returns vesting vaults filtered by owner or token address. Deprecated in v1; migrate to GET /api/v2/vaults before the Sunset date.",
+        "operationId": "VaultsV1Controller_listVaultsV1_v1",
+        "deprecated": true,
+        "x-deprecation-policy": {
+          "sinceVersion": "1.0.0",
+          "sunsetDate": "Wed, 30 Sep 2026 23:59:59 GMT",
+          "replacementPath": "/api/v2/vaults",
+          "noticeDays": 90
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ownerAddress",
+            "in": "query",
+            "required": false,
+            "description": "Filter vaults by owner wallet address",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "GBYWLISGOUWQ43VQEGXX6KRGDZ3CKAFFK3JXVLXKDO5TIFJUJ3OHJYOZ"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of vesting vaults",
+            "headers": {
+              "Deprecation": {
+                "description": "Indicates that the endpoint is deprecated (RFC 8594)",
+                "schema": {
+                  "type": "string",
+                  "examples": [
+                    "true"
+                  ]
+                }
+              },
+              "Sunset": {
+                "description": "HTTP-date after which the endpoint will be retired (RFC 8594)",
+                "schema": {
+                  "type": "string",
+                  "format": "date-time",
+                  "examples": [
+                    "Wed, 30 Sep 2026 23:59:59 GMT"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VaultDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Create a new vesting vault",
+        "description": "Registers a new Soroban or EVM vesting vault and initializes its schedule.",
+        "operationId": "VaultsV1Controller_createVault_v1",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Vesting vault creation payload",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVaultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Vault created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error in request payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vaults/{id}": {
+      "get": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Get vesting vault details by ID",
+        "description": "Retrieves a single vesting vault and its schedule metadata by UUID.",
+        "operationId": "VaultsV1Controller_getVaultById_v1",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the vesting vault",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "550e8400-e29b-41d4-a716-446655440000"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vesting vault details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vault not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vaults/{id}/claims": {
+      "post": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "Submit a vested token claim",
+        "description": "Processes a beneficiary token claim against an active vesting vault.",
+        "operationId": "VaultsV1Controller_submitClaim_v1",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Vault UUID",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "550e8400-e29b-41d4-a716-446655440000"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Beneficiary claim payload",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Claim processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid claim parameters or compliance rejection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponseDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/vaults": {
+      "get": {
+        "tags": [
+          "vaults"
+        ],
+        "summary": "List vesting vaults with cursor pagination and liquidity health (v2)",
+        "description": "Stable v2 endpoint returning cursor-paginated vesting vaults with real-time Soroban liquidity status.",
+        "operationId": "VaultsV2Controller_listVaultsV2_v2",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque pagination cursor from the previous page",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "eyJpZCI6IjU1MGU4NDAwIn0="
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of records per page (1–100)",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "25"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cursor-paginated list of vesting vaults",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VaultDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Batch Claims",
+      "description": "Enterprise payroll batch claim processing for team token management"
+    },
+    {
+      "name": "Contract Verification",
+      "description": "Verify and manage approved Soroban contracts to prevent impersonation scams"
+    },
+    {
+      "name": "Partner Management",
+      "description": "Institutional partner management with tiered API access"
+    },
+    {
+      "name": "Vaults",
+      "description": "Vault management"
+    },
+    {
+      "name": "Claims",
+      "description": "Claims processing"
+    },
+    {
+      "name": "Admin",
+      "description": "Administrative operations"
+    },
+    {
+      "name": "Portfolio",
+      "description": "User portfolio management"
+    }
+  ]
+}
