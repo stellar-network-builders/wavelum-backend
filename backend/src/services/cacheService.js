@@ -1,12 +1,45 @@
 const logger = require('../utils/logger');
 const redis = require('redis');
 const secretsService = require('./secretsService');
+const metricsService = require('./metricsService');
 
 class CacheService {
   constructor() {
     this.client = null;
     this.isConnected = false;
     this.defaultTTL = 3600; // 1 hour in seconds
+    this.TTL = Object.freeze({
+      VAULT: 300,        // 5 minutes
+      SUB_SCHEDULE: 120, // 2 minutes
+      CLAIMS: 30,        // 30 seconds
+    });
+    this.inFlightLocks = new Map();
+    this.memoryCache = new Map();
+  }
+
+  _extractKeyPrefix(key) {
+    if (!key || typeof key !== 'string') return 'unknown';
+    const parts = key.split(':');
+    if (parts.length >= 2) {
+      return `${parts[0]}:${parts[1]}`;
+    }
+    return parts[0];
+  }
+
+  getVaultKey(id) {
+    return `vesting:vault:${id}`;
+  }
+
+  getSubScheduleKey(id) {
+    return `vesting:sub_schedule:${id}`;
+  }
+
+  getClaimsKey(subScheduleId) {
+    return `vesting:claims:${subScheduleId}`;
+  }
+
+  getScheduleKey(vaultAddress, beneficiaryAddress = null) {
+    return `vesting:vault:${vaultAddress}:schedule:${beneficiaryAddress || 'all'}`;
   }
 
   /**
@@ -158,7 +191,8 @@ class CacheService {
       }
 
       const serializedValue = JSON.stringify(value);
-      await this.client.setEx(key, ttl, serializedValue);
+      const effectiveTtl = typeof ttl === 'number' && ttl > 0 ? ttl : this.defaultTTL;
+      await this.client.setEx(key, effectiveTtl, serializedValue);
       return true;
     } catch (error) {
       logger.error(`Error setting cache key ${key}:`, error);
@@ -187,10 +221,12 @@ class CacheService {
 
   /**
    * Delete multiple keys matching a pattern
-   * @param {string} pattern - Key pattern (e.g., "user_vaults_*")
+   * @param {string} pattern - Key pattern (e.g., "vesting:vault:*")
    * @returns {Promise<boolean>} Success status
    */
   async deletePattern(pattern) {
+    const startTime = process.hrtime.bigint();
+    const keyPrefix = this._extractKeyPrefix(pattern);
     try {
       if (!this.isConnected || !this.client) {
         return false;
@@ -200,11 +236,136 @@ class CacheService {
       if (keys && keys.length > 0) {
         await this.client.del(keys);
       }
+
+      if (metricsService.cacheOperationsTotal) {
+        metricsService.cacheOperationsTotal.inc({
+          operation: 'invalidatePattern',
+          result: 'success',
+          key_prefix: keyPrefix,
+        });
+      }
       return true;
     } catch (error) {
       logger.error(`Error deleting cache pattern ${pattern}:`, error);
       return false;
+    } finally {
+      if (metricsService.cacheOperationDuration) {
+        const durationSec = Number(process.hrtime.bigint() - startTime) / 1e9;
+        metricsService.cacheOperationDuration.observe(
+          { operation: 'invalidatePattern', key_prefix: keyPrefix },
+          durationSec
+        );
+      }
     }
+  }
+
+  /**
+   * Alias for deletePattern matching the cache-aside specification (#13).
+   * @param {string} pattern - Key pattern (e.g. "vesting:vault:*")
+   * @returns {Promise<boolean>}
+   */
+  async invalidatePattern(pattern) {
+    return await this.deletePattern(pattern);
+  }
+
+  /**
+   * Cache-aside helper with singleflight / atomic lock protection to prevent thundering herd (#13).
+   * @param {string} key - Cache key
+   * @param {number|Function} ttlOrFetchFn - TTL in seconds (or fetchFn if 2-arg form used)
+   * @param {Function} [maybeFetchFn] - Async loader function on cache miss
+   * @returns {Promise<any>}
+   */
+  async getOrSet(key, ttlOrFetchFn, maybeFetchFn) {
+    const ttl = typeof ttlOrFetchFn === 'number' ? ttlOrFetchFn : this.defaultTTL;
+    const fetchFn = typeof ttlOrFetchFn === 'function' ? ttlOrFetchFn : maybeFetchFn;
+    const keyPrefix = this._extractKeyPrefix(key);
+    const startTime = process.hrtime.bigint();
+
+    try {
+      const cached = await this.get(key);
+      if (cached !== null) {
+        if (metricsService.cacheOperationsTotal) {
+          metricsService.cacheOperationsTotal.inc({
+            operation: 'getOrSet',
+            result: 'hit',
+            key_prefix: keyPrefix,
+          });
+        }
+        return cached;
+      }
+
+      if (metricsService.cacheOperationsTotal) {
+        metricsService.cacheOperationsTotal.inc({
+          operation: 'getOrSet',
+          result: 'miss',
+          key_prefix: keyPrefix,
+        });
+      }
+
+      if (this.inFlightLocks.has(key)) {
+        return await this.inFlightLocks.get(key);
+      }
+
+      const loadPromise = (async () => {
+        try {
+          const fresh = await fetchFn();
+          if (fresh !== null && fresh !== undefined) {
+            await this.set(key, fresh, ttl);
+          }
+          return fresh;
+        } finally {
+          this.inFlightLocks.delete(key);
+        }
+      })();
+
+      this.inFlightLocks.set(key, loadPromise);
+      return await loadPromise;
+    } finally {
+      if (metricsService.cacheOperationDuration) {
+        const durationSec = Number(process.hrtime.bigint() - startTime) / 1e9;
+        metricsService.cacheOperationDuration.observe(
+          { operation: 'getOrSet', key_prefix: keyPrefix },
+          durationSec
+        );
+      }
+    }
+  }
+
+  /**
+   * Background cache warming for high-traffic keys (#13).
+   * @param {Array<string|{key: string, ttl?: number}>} keys - Keys to warm
+   * @param {Function} fetchFn - Async loader receiving (key)
+   * @param {number} [defaultTtl] - Default TTL in seconds
+   * @returns {Promise<Array<{key: string, status: string}>>}
+   */
+  async warm(keys, fetchFn, defaultTtl = this.TTL.VAULT) {
+    if (!Array.isArray(keys) || typeof fetchFn !== 'function') {
+      return [];
+    }
+
+    const results = await Promise.all(
+      keys.map(async (entry) => {
+        const key = typeof entry === 'string' ? entry : entry.key;
+        const ttl = (typeof entry === 'object' && entry.ttl) || defaultTtl;
+        const keyPrefix = this._extractKeyPrefix(key);
+        try {
+          await this.getOrSet(key, ttl, () => fetchFn(key));
+          if (metricsService.cacheOperationsTotal) {
+            metricsService.cacheOperationsTotal.inc({
+              operation: 'warm',
+              result: 'success',
+              key_prefix: keyPrefix,
+            });
+          }
+          return { key, status: 'warmed' };
+        } catch (error) {
+          logger.error(`Error warming cache key ${key}:`, error);
+          return { key, status: 'failed' };
+        }
+      })
+    );
+
+    return results;
   }
 
   /**
@@ -215,16 +376,7 @@ class CacheService {
    * @returns {Promise<any>} Result from cache or function
    */
   async wrapWithCache(key, fn, ttl = this.defaultTTL) {
-    const cachedValue = await this.get(key);
-    if (cachedValue !== null) {
-      return cachedValue;
-    }
-
-    const result = await fn();
-    if (result !== null && result !== undefined) {
-      await this.set(key, result, ttl);
-    }
-    return result;
+    return await this.getOrSet(key, ttl, fn);
   }
 
   /**

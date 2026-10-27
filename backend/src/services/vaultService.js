@@ -8,8 +8,9 @@
 const logger = require('../utils/logger');
 const BalanceTracker = require('./balanceTracker');
 const BalanceInfo = require('../models/BalanceInfo');
-const { Vault, SubSchedule, Beneficiary } = require('../models');
+const { Vault, SubSchedule, Beneficiary, ClaimsHistory } = require('../models');
 const ClaimCalculator = require('./claimCalculator');
+const cacheService = require('./cacheService');
 
 class VaultService {
   /**
@@ -19,6 +20,96 @@ class VaultService {
   constructor(rpcUrl = null) {
     this.balanceTracker = new BalanceTracker(rpcUrl);
     this.claimCalculator = new ClaimCalculator(rpcUrl);
+  }
+
+  /**
+   * Fetch vault details by ID using Redis cache-aside (TTL: 5 minutes) (#13).
+   * @param {string|number} vaultId
+   * @returns {Promise<Object|null>}
+   */
+  async getVaultById(vaultId) {
+    const key = cacheService.getVaultKey(vaultId);
+    return await cacheService.getOrSet(key, cacheService.TTL.VAULT, async () => {
+      const vault = await Vault.findByPk(vaultId);
+      if (!vault) return null;
+      return typeof vault.toJSON === 'function' ? vault.toJSON() : vault;
+    });
+  }
+
+  /**
+   * Fetch sub-schedules for a vault using Redis cache-aside (TTL: 2 minutes) (#13).
+   * @param {string|number} vaultId
+   * @returns {Promise<Array<Object>>}
+   */
+  async getSubSchedulesByVaultId(vaultId) {
+    const key = cacheService.getSubScheduleKey(vaultId);
+    return await cacheService.getOrSet(key, cacheService.TTL.SUB_SCHEDULE, async () => {
+      const rows = await SubSchedule.findAll({ where: { vault_id: vaultId } });
+      return rows.map((r) => (typeof r.toJSON === 'function' ? r.toJSON() : r));
+    });
+  }
+
+  /**
+   * Fetch claims history for a sub-schedule using Redis cache-aside (TTL: 30 seconds) (#13).
+   * @param {string|number} subScheduleId
+   * @returns {Promise<Array<Object>>}
+   */
+  async getClaimsBySubScheduleId(subScheduleId) {
+    const key = cacheService.getClaimsKey(subScheduleId);
+    return await cacheService.getOrSet(key, cacheService.TTL.CLAIMS, async () => {
+      const rows = await ClaimsHistory.findAll({ where: { sub_schedule_id: subScheduleId } });
+      return rows.map((r) => (typeof r.toJSON === 'function' ? r.toJSON() : r));
+    });
+  }
+
+  /**
+   * Create a vault and invalidate affected cache keys (#13).
+   */
+  async createVault(vaultData) {
+    const vault = await Vault.create(vaultData);
+    await cacheService.invalidatePattern(`vesting:vault:${vault.id}*`);
+    if (vault.address) {
+      await cacheService.invalidatePattern(`vesting:vault:${vault.address}*`);
+    }
+    return vault;
+  }
+
+  /**
+   * Update a vault and invalidate affected cache keys (#13).
+   */
+  async updateVault(vaultId, updates) {
+    const vault = await Vault.findByPk(vaultId);
+    if (!vault) {
+      throw new Error(`Vault not found: ${vaultId}`);
+    }
+    const updated = await vault.update(updates);
+    await cacheService.invalidatePattern(`vesting:vault:${vaultId}*`);
+    if (vault.address) {
+      await cacheService.invalidatePattern(`vesting:vault:${vault.address}*`);
+    }
+    return updated;
+  }
+
+  /**
+   * Record a vesting claim and invalidate sub-schedule, claims, and vault caches (#13).
+   */
+  async claimVesting({ vaultId, subScheduleId, claimData }) {
+    let record = null;
+    if (claimData && ClaimsHistory && typeof ClaimsHistory.create === 'function') {
+      record = await ClaimsHistory.create({
+        ...claimData,
+        sub_schedule_id: subScheduleId,
+      });
+    }
+    if (subScheduleId !== undefined && subScheduleId !== null) {
+      await cacheService.invalidatePattern(`vesting:claims:${subScheduleId}*`);
+      await cacheService.invalidatePattern(`vesting:sub_schedule:${subScheduleId}*`);
+    }
+    if (vaultId !== undefined && vaultId !== null) {
+      await cacheService.invalidatePattern(`vesting:sub_schedule:${vaultId}*`);
+      await cacheService.invalidatePattern(`vesting:vault:${vaultId}*`);
+    }
+    return record;
   }
 
   /**

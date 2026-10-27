@@ -107,6 +107,20 @@ const circuitBreakerLastStateChange = new client.Gauge({
   labelNames: ['service']
 });
 
+// Cache-Aside Metrics (Issue #13)
+const cacheOperationsTotal = new client.Counter({
+  name: 'cache_operations_total',
+  help: 'Total number of cache operations by operation, result (hit/miss/invalidate/warm), and key prefix',
+  labelNames: ['operation', 'result', 'key_prefix']
+});
+
+const cacheOperationDuration = new client.Histogram({
+  name: 'cache_operation_duration_seconds',
+  help: 'Duration of cache operations in seconds by operation and key prefix',
+  labelNames: ['operation', 'key_prefix'],
+  buckets: [0.0005, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5]
+});
+
 register.registerMetric(apiResponseTime);
 register.registerMetric(activeDbConnections);
 register.registerMetric(totalIndexedBlocks);
@@ -123,6 +137,8 @@ register.registerMetric(circuitBreakerState);
 register.registerMetric(circuitBreakerTripsTotal);
 register.registerMetric(circuitBreakerFailureCount);
 register.registerMetric(circuitBreakerLastStateChange);
+register.registerMetric(cacheOperationsTotal);
+register.registerMetric(cacheOperationDuration);
 
 module.exports = {
   register,
@@ -141,5 +157,7 @@ module.exports = {
   circuitBreakerState,
   circuitBreakerTripsTotal,
   circuitBreakerFailureCount,
-  circuitBreakerLastStateChange
+  circuitBreakerLastStateChange,
+  cacheOperationsTotal,
+  cacheOperationDuration
 };

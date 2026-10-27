@@ -1,12 +1,46 @@
 'use strict';
 
 const logger = require('../utils/logger');
-const { Vault, Beneficiary, SubSchedule } = require('../models');
+const { Vault, Beneficiary, SubSchedule, ClaimsHistory } = require('../models');
 const { sequelize } = require('../database/connection');
 const auditLogger = require('./auditLogger');
 const cacheInvalidationService = require('./cacheInvalidationService');
+const cacheService = require('./cacheService');
 
 class VestingService {
+  /**
+   * Fetch vault by ID with 5-minute cache-aside TTL (#13).
+   */
+  async getVaultById(vaultId) {
+    const key = cacheService.getVaultKey(vaultId);
+    return await cacheService.getOrSet(key, cacheService.TTL.VAULT, async () => {
+      const vault = await Vault.findByPk(vaultId);
+      if (!vault) return null;
+      return typeof vault.toJSON === 'function' ? vault.toJSON() : vault;
+    });
+  }
+
+  /**
+   * Fetch sub-schedules for a vault with 2-minute cache-aside TTL (#13).
+   */
+  async getSubSchedulesByVaultId(vaultId) {
+    const key = cacheService.getSubScheduleKey(vaultId);
+    return await cacheService.getOrSet(key, cacheService.TTL.SUB_SCHEDULE, async () => {
+      const subSchedules = await SubSchedule.findAll({ where: { vault_id: vaultId } });
+      return subSchedules.map((s) => (typeof s.toJSON === 'function' ? s.toJSON() : s));
+    });
+  }
+
+  /**
+   * Fetch claims history for a sub-schedule with 30-second cache-aside TTL (#13).
+   */
+  async getClaimsBySubScheduleId(subScheduleId) {
+    const key = cacheService.getClaimsKey(subScheduleId);
+    return await cacheService.getOrSet(key, cacheService.TTL.CLAIMS, async () => {
+      const claims = await ClaimsHistory.findAll({ where: { sub_schedule_id: subScheduleId } });
+      return claims.map((c) => (typeof c.toJSON === 'function' ? c.toJSON() : c));
+    });
+  }
   /**
    * Create a new vault.
    *
@@ -87,6 +121,8 @@ class VestingService {
           vaultId: vault.id,
           orgId: vault.org_id
         });
+        await cacheService.invalidatePattern(`vesting:vault:${vault.id}*`);
+        await cacheService.invalidatePattern(`vesting:vault:${vault.address}*`);
 
         return vault;
       } else {
@@ -243,6 +279,10 @@ class VestingService {
         vaultId: vault.id
       }, subSchedule.end_timestamp);
     }
+
+    await cacheService.invalidatePattern(`vesting:vault:${vault.id}*`);
+    await cacheService.invalidatePattern(`vesting:vault:${vault.address}*`);
+    await cacheService.invalidatePattern(`vesting:sub_schedule:${vault.id}*`);
 
     return subSchedule;
   }
@@ -443,6 +483,13 @@ class VestingService {
         await feeDistributorService.accumulateFeeForVault(vault.id, withdrawAmount);
     } catch (feeError) {
         logger.warn('Failed to accumulate protocol fee:', feeError.message);
+    }
+
+    await cacheService.invalidatePattern(`vesting:vault:${vault.id}*`);
+    await cacheService.invalidatePattern(`vesting:vault:${vault_address}*`);
+    await cacheService.invalidatePattern(`vesting:sub_schedule:${vault.id}*`);
+    for (const item of distribution) {
+      await cacheService.invalidatePattern(`vesting:claims:${item.subschedule_id}*`);
     }
 
     return {
