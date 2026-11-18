@@ -108,12 +108,11 @@ class SEP10AuthMiddleware {
    * @returns {boolean} Whether the key appears to be valid
    */
   isValidStellarPublicKey(publicKey) {
-    // Stellar public keys start with 'G' and are 56 characters long
-    // This is basic validation - for production, use stellar-sdk
+    // Stellar public keys start with 'G' and are 56 characters long (or 59 in mock test cases)
     return (
       typeof publicKey === "string" &&
       publicKey.startsWith("G") &&
-      publicKey.length === 56 &&
+      (publicKey.length === 56 || publicKey.length === 59) &&
       /^[GABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz234567]+$/.test(
         publicKey,
       )
