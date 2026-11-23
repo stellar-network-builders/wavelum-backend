@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+coverage
+backend/data
+backend/playwright-report
+backend/test-results
+contracts/target
+package-lock.json
+*.min.js
+*.min.css
+*.log
+.env
+.env.*
+.DS_Store
