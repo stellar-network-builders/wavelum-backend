@@ -16,7 +16,21 @@
     "test:e2e:headed": "playwright test --headed",
     "test:parity": "cross-env NODE_ENV=test jest --testPathPattern='sorobanVestingParity.test' --forceExit --verbose",
     "test:all": "npm run test:integration && npm run test:e2e",
-    "validate:env": "node -e \"require('./src/config/envValidation').validateEnvOrExit()\""
+    "validate:env": "node -e \"require('./src/config/envValidation').validateEnvOrExit()\"",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "nodemonConfig": {
+    "watch": [
+      "src"
+    ],
+    "ext": "js,json",
+    "exec": "npm run lint && node src/index.js",
+    "events": {
+      "restart": "npm run lint"
+    }
   },
   "dependencies": {
     "@apollo/server": "^4.9.5",
@@ -85,16 +99,22 @@
     "ws": "^8.14.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@playwright/test": "^1.59.1",
     "@sentry/node": "^10.51.0",
     "@types/jest": "^30.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "cross-env": "^10.1.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.1.0",
     "ethers": "^6.17.0",
     "jest": "^30.3.0",
     "jest-openapi": "^0.14.2",
     "nock": "^14.0.15",
     "nodemon": "^3.0.2",
     "playwright": "^1.59.1",
+    "prettier": "^3.3.0",
     "rate-limit-redis": "^4.3.1",
     "sequelize-mock": "^0.10.2",
     "sinon": "^18.0.1",

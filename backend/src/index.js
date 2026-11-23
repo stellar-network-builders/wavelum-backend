@@ -3,7 +3,6 @@ const { initializeTracing } = require('./tracing/tracing');
 initializeTracing();
 
 const express = require('express');
-const cors = require('cors');
 const dotenv = require('dotenv');
 const { strictCors, helmetMiddleware } = require('./middleware/security.middleware');
 const http = require('http');
@@ -17,19 +16,19 @@ const Sentry = require('@sentry/node');
 const { nodeProfilingIntegration } = require('@sentry/profiling-node');
 
 // Import swagger documentation
-const swaggerUi = require("swagger-ui-express");
-const swaggerSpecs = require("./swagger/options");
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./swagger/options');
 
 // Initialize OpenTelemetry BEFORE everything else
-require("./services/telemetryService");
+require('./services/telemetryService');
 
 // Import Metrics and Queue services
-const metricsService = require("./services/metricsService");
-const { metricsMiddleware } = require("./middleware/metrics.middleware");
-const { globalRateLimiter, authRateLimiter } = require("./middleware/rateLimit.middleware");
+const metricsService = require('./services/metricsService');
+const { metricsMiddleware } = require('./middleware/metrics.middleware');
+const { globalRateLimiter, authRateLimiter } = require('./middleware/rateLimit.middleware');
 // Background job manager: BullMQ queues with retry/backoff, dead-letter queues,
 // stalled-job detection and DLQ monitoring/alerting.
-const backgroundJobManager = require("./workers/backgroundJobManager");
+const backgroundJobManager = require('./workers/backgroundJobManager');
 backgroundJobManager.init();
 
 
@@ -48,64 +47,11 @@ process.on('uncaughtException', (error) => {
 
 const app = express();
 
-// --- NestJS Integration Start ---
-let throttlerService;
-let pdfQueue;
-let exportQueue;
-
-const initNest = async () => {
-  const nestApp = await bootstrapNest(app);
-  throttlerService = nestApp.get(ThrottlerService);
-  pdfQueue = nestApp.get(getQueueToken('pdf-generation'));
-  exportQueue = nestApp.get(getQueueToken('csv-export'));
-
-  // Expose queues to app for use in routes
-  app.set('pdfQueue', pdfQueue);
-  app.set('exportQueue', exportQueue);
-
-  logger.info('NestJS bridge established');
-};
-
-// Global rate limiting middleware using NestJS Throttler
-app.use(async (req, res, next) => {
-  if (!throttlerService) {
-    // If NestJS isn't ready yet, skip throttling (or wait)
-    return next();
-  }
-
-  const ip = req.ip || req.get('x-forwarded-for') || req.socket.remoteAddress;
-  const isAuth = req.path.includes('/api/auth/');
-
-  try {
-    const limit = isAuth ? 10 : 100;
-    const ttl = 60000;
-    const key = `throttle:${isAuth ? 'auth' : 'global'}:${ip}`;
-
-    const { success } = await throttlerService.throttle({
-      limit,
-      ttl,
-      key,
-    });
-
-    if (!success) {
-      return res.status(429).json({
-        success: false,
-        error: "Too many requests. Please try again later.",
-      });
-    }
-    next();
-  } catch (e) {
-    logger.error("Throttler error:", e);
-    next();
-  }
-});
-// --- NestJS Integration End ---
-
 Sentry.init({
   // Fallback to a dummy DSN so Sentry SDK doesn't disable itself when testing without credentials
-  dsn: process.env.SENTRY_DSN || "http://public_key@localhost:9999/1",
-  debug: process.env.NODE_ENV !== "test", // Output sentry operations to console (disable in production/test)
-  environment: process.env.NODE_ENV || "development",
+  dsn: process.env.SENTRY_DSN || 'http://public_key@localhost:9999/1',
+  debug: process.env.NODE_ENV !== 'test', // Output sentry operations to console (disable in production/test)
+  environment: process.env.NODE_ENV || 'development',
   integrations: [nodeProfilingIntegration()],
   tracesSampleRate: 1.0, // 100% of transactions for performance monitoring
   profilesSampleRate: 1.0, // 100% of transactions are profiled
@@ -126,14 +72,14 @@ if (process.env.SENTRY_DSN && Sentry.Handlers) {
 }
 
 // OpenTelemetry tracing middleware - applies to all routes
-const { tracingMiddleware } = require("./middleware/tracing.middleware");
+const { tracingMiddleware } = require('./middleware/tracing.middleware');
 app.use(tracingMiddleware);
 
 // Security: Helmet (CSP, HSTS, X-Frame-Options, …) + strict CORS (Issue #260)
 app.use(helmetMiddleware);
 app.use(strictCors);
 app.use(express.json());
-app.use(require("cookie-parser")());
+app.use(require('cookie-parser')());
 
 // Apply metrics middleware
 app.use(metricsMiddleware);
@@ -142,46 +88,39 @@ app.use(metricsMiddleware);
 app.use(globalRateLimiter);
 
 // Apply strict rate limiting to auth routes
-app.use("/api/auth", authRateLimiter);
-
+app.use('/api/auth', authRateLimiter);
 
 // Apply smart compression to all API routes (compresses JSON >1KB)
 app.use('/api', smartCompression);
 
 // Apply wallet-based rate limiting to all API routes
-app.use("/api", walletRateLimitMiddleware);
+app.use('/api', walletRateLimitMiddleware);
 
 // Import and apply vault pause middleware
-const {
-  vaultPauseMiddleware,
-  vaultStatusMiddleware,
-} = require("./middleware/vaultPause.middleware");
+const { vaultPauseMiddleware, vaultStatusMiddleware } = require('./middleware/vaultPause.middleware');
 
 // Import and apply Rule 144 compliance middleware
-const {
-  rule144ComplianceMiddleware,
-  recordClaimComplianceMiddleware
-} = require('./middleware/rule144Compliance.middleware');
+const { recordClaimComplianceMiddleware } = require('./middleware/rule144Compliance.middleware');
 
 // Apply vault status middleware to all API routes
-app.use("/api", vaultStatusMiddleware);
+app.use('/api', vaultStatusMiddleware);
 
 // Apply vault pause middleware to vault-specific endpoints
-app.use("/api/vaults", vaultPauseMiddleware);
-app.use("/api/claims", vaultPauseMiddleware);
-app.use("/api/user", vaultPauseMiddleware);
-app.use("/api/admin/vault", vaultPauseMiddleware);
+app.use('/api/vaults', vaultPauseMiddleware);
+app.use('/api/claims', vaultPauseMiddleware);
+app.use('/api/user', vaultPauseMiddleware);
+app.use('/api/admin/vault', vaultPauseMiddleware);
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 const claimRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 1,
   message: {
     success: false,
-    error: "Too many claim requests. Please wait 1 minute before trying again.",
+    error: 'Too many claim requests. Please wait 1 minute before trying again.',
   },
-  standardHeaders: "draft-7",
+  standardHeaders: 'draft-7',
   legacyHeaders: false,
 });
 
@@ -199,30 +138,26 @@ const isAdminOfOrg = async (adminAddress, orgId) => {
     });
     return !!org;
   } catch (err) {
-    logger.error("Error in isAdminOfOrg:", err);
+    logger.error('Error in isAdminOfOrg:', err);
     return false;
   }
 };
 // Register webhook URL for organization with admin/org check
-app.post("/api/admin/webhooks", async (req, res) => {
+app.post('/api/admin/webhooks', async (req, res) => {
   try {
     const { organization_id, webhook_url, admin_address } = req.body;
     if (!organization_id || !webhook_url || !admin_address) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "organization_id, webhook_url, and admin_address are required",
-        });
+      return res.status(400).json({
+        success: false,
+        error: 'organization_id, webhook_url, and admin_address are required',
+      });
     }
     const isAdmin = await isAdminOfOrg(admin_address, organization_id);
     if (!isAdmin) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          error: "Forbidden: admin_address does not belong to organization",
-        });
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: admin_address does not belong to organization',
+      });
     }
     const webhook = await OrganizationWebhook.create({
       organization_id,
@@ -230,76 +165,69 @@ app.post("/api/admin/webhooks", async (req, res) => {
     });
     res.status(201).json({ success: true, data: webhook });
   } catch (error) {
-    logger.error("Error registering webhook:", error);
+    logger.error('Error registering webhook:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-const indexingService = require("./services/indexingService");
-const adminService = require("./services/adminService");
-const vestingService = require("./services/vestingService");
-const merkleVaultService = require("./services/merkleVaultService");
-const discordBotService = require("./services/discordBotService");
-const cacheService = require("./services/cacheService");
-const tvlService = require("./services/tvlService");
-const vaultExportService = require("./services/vaultExportService");
-const authService = require("./services/authService");
-const notificationService = require("./services/notificationService");
-const liquidityMonitorService = require("./services/liquidityMonitorService");
-const pdfService = require("./services/pdfService");
-const legalDocumentHashingService = require("./services/legalDocumentHashingService");
-const ledgerSyncService = require("./services/ledgerSyncService");
-const multiSigRevocationService = require("./services/multiSigRevocationService");
-const dividendService = require("./services/dividendService");
-const accountConsolidationService = require("./services/accountConsolidationService");
-const VaultService = require("./services/vaultService");
-const batchRevocationService = require("./services/batchRevocationService");
-const monthlyReportJob = require("./jobs/monthlyReportJob");
-const { VaultReconciliationJob } = require("./jobs/vaultReconciliationJob");
-const vaultArchivalJob = require("./jobs/vaultArchivalJob");
-const historicalPriceTrackingJob = require("./jobs/historicalPriceTrackingJob");
-const integrityMonitoringJob = require("./jobs/integrityMonitoringJob");
-const vaultRegistryIndexingJob = require("./jobs/vaultRegistryIndexingJob");
-const vaultBalanceMonitoringJob = require("./jobs/vaultBalanceMonitoringJob");
-const claimWebhookListenerService = require("./services/claimWebhookListenerService");
-const stellarPathPaymentListener = require("./services/stellarPathPaymentListener");
-const kycExpirationWorker = require("./jobs/kycExpirationWorker");
-const gdprComplianceJob = require("./jobs/gdprComplianceJob");
-const VestingStateReconciliationJob = require("./jobs/vestingStateReconciliationJob");
+const indexingService = require('./services/indexingService');
+const adminService = require('./services/adminService');
+const vestingService = require('./services/vestingService');
+const merkleVaultService = require('./services/merkleVaultService');
+const discordBotService = require('./services/discordBotService');
+const cacheService = require('./services/cacheService');
+const tvlService = require('./services/tvlService');
+const authService = require('./services/authService');
+const notificationService = require('./services/notificationService');
+const legalDocumentHashingService = require('./services/legalDocumentHashingService');
+const multiSigRevocationService = require('./services/multiSigRevocationService');
+const dividendService = require('./services/dividendService');
+const accountConsolidationService = require('./services/accountConsolidationService');
+const VaultService = require('./services/vaultService');
+const batchRevocationService = require('./services/batchRevocationService');
+const monthlyReportJob = require('./jobs/monthlyReportJob');
+const { VaultReconciliationJob } = require('./jobs/vaultReconciliationJob');
+const historicalPriceTrackingJob = require('./jobs/historicalPriceTrackingJob');
+const vaultRegistryIndexingJob = require('./jobs/vaultRegistryIndexingJob');
+const vaultBalanceMonitoringJob = require('./jobs/vaultBalanceMonitoringJob');
+const claimWebhookListenerService = require('./services/claimWebhookListenerService');
+const stellarPathPaymentListener = require('./services/stellarPathPaymentListener');
+const kycExpirationWorker = require('./jobs/kycExpirationWorker');
+const gdprComplianceJob = require('./jobs/gdprComplianceJob');
+const VestingStateReconciliationJob = require('./jobs/vestingStateReconciliationJob');
 
-const { Token, initTokenModel } = models; // models already has these
+const { Token } = models; // models already has these
 // Note: models/index.js already calls initTokenModel(sequelize)
 
 // All models are already initialized and exported via require("./models")
-const analyticsRoutes = require("./routes/analyticsRoutes");
+const analyticsRoutes = require('./routes/analyticsRoutes');
 
 // Import webhooks routes
-const webhooksRoutes = require("./routes/webhooks");
-const organizationRoutes = require("./routes/organization");
-const hsmRoutes = require("./routes/hsm");
-const historicalPriceRoutes = require("./routes/historicalPriceRoutes");
-const auditorRoutes = require("./routes/auditor");
-const vaultRegistryRoutes = require("./routes/vaultRegistry");
-const contractUpgradeRoutes = require("./routes/contractUpgrade");
-const conversionAnalyticsRoutes = require("./routes/conversionAnalytics");
-const correlationRoutes = require("./routes/correlationRoutes");
-const futureLienRoutes = require("./routes/futureLienRoutes");
-const healthRoutes = require("./routes/healthRoutes");
-const kycStatusRoutes = require("./routes/kycStatusRoutes");
-const unlockProjectionRoutes = require("./routes/unlockProjectionRoutes");
+const webhooksRoutes = require('./routes/webhooks');
+const organizationRoutes = require('./routes/organization');
+const hsmRoutes = require('./routes/hsm');
+const historicalPriceRoutes = require('./routes/historicalPriceRoutes');
+const auditorRoutes = require('./routes/auditor');
+const vaultRegistryRoutes = require('./routes/vaultRegistry');
+const contractUpgradeRoutes = require('./routes/contractUpgrade');
+const conversionAnalyticsRoutes = require('./routes/conversionAnalytics');
+const correlationRoutes = require('./routes/correlationRoutes');
+const futureLienRoutes = require('./routes/futureLienRoutes');
+const kycStatusRoutes = require('./routes/kycStatusRoutes');
+const unlockProjectionRoutes = require('./routes/unlockProjectionRoutes');
 
-app.get("/", (req, res) => {
-  res.json({ message: "Vesting Vault API is running!" });
+app.get('/', (req, res) => {
+  res.json({ message: 'Vesting Vault API is running!' });
 });
 
-app.get("/health", (req, res) => {
-  res.json({ status: "OK", timestamp: new Date().toISOString() });
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Prometheus metrics endpoint
-app.get("/metrics", async (req, res) => {
+app.get('/metrics', async (req, res) => {
   try {
-    res.set("Content-Type", metricsService.register.contentType);
+    res.set('Content-Type', metricsService.register.contentType);
     res.end(await metricsService.register.metrics());
   } catch (err) {
     res.status(500).end(err);
@@ -307,10 +235,10 @@ app.get("/metrics", async (req, res) => {
 });
 
 // Database connection pool + query performance status (issue #8)
-app.get("/admin/db/pool-status", (req, res) => {
+app.get('/admin/db/pool-status', (req, res) => {
   try {
-    const connectionPoolMonitor = require("./database/connectionPoolMonitor");
-    const queryPerformanceMonitor = require("./database/queryPerformanceMonitor");
+    const connectionPoolMonitor = require('./database/connectionPoolMonitor');
+    const queryPerformanceMonitor = require('./database/queryPerformanceMonitor');
     const limit = parseInt(req.query.slowLimit, 10) || 25;
 
     res.json({
@@ -323,42 +251,41 @@ app.get("/admin/db/pool-status", (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("Error fetching DB pool status:", error);
-    res.status(500).json({ success: false, error: "Failed to fetch DB pool status" });
+    logger.error('Error fetching DB pool status:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch DB pool status' });
   }
 });
 
-
 // Enhanced health check with readiness probe
-app.get("/health/ready", async (req, res) => {
+app.get('/health/ready', async (req, res) => {
   try {
     // Check database connection
     await sequelize.authenticate();
 
     // Check Redis connection if available
-    let redisStatus = "not_configured";
+    let redisStatus = 'not_configured';
     try {
-      const cacheService = require("./services/cacheService");
+      const cacheService = require('./services/cacheService');
       if (cacheService.isReady()) {
-        redisStatus = "healthy";
+        redisStatus = 'healthy';
       }
     } catch (redisError) {
-      redisStatus = "unavailable";
+      redisStatus = 'unavailable';
     }
 
     // All checks passed
     res.json({
-      status: "ready",
+      status: 'ready',
       timestamp: new Date().toISOString(),
       checks: {
-        database: "healthy",
+        database: 'healthy',
         redis: redisStatus,
       },
     });
   } catch (error) {
-    logger.error("Health check failed:", error);
+    logger.error('Health check failed:', error);
     res.status(503).json({
-      status: "not_ready",
+      status: 'not_ready',
       timestamp: new Date().toISOString(),
       error: error.message,
     });
@@ -366,52 +293,54 @@ app.get("/health/ready", async (req, res) => {
 });
 
 // Liveness probe endpoint
-app.get("/health/live", (req, res) => {
+app.get('/health/live', (req, res) => {
   // Simple liveness check - just confirms the process is running
   const uptime = process.uptime();
   const memoryUsage = process.memoryUsage();
 
   res.json({
-    status: "alive",
+    status: 'alive',
     timestamp: new Date().toISOString(),
     uptime: Math.floor(uptime),
     memory: {
-      heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + "MB",
-      heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + "MB",
-      rss: Math.round(memoryUsage.rss / 1024 / 1024) + "MB",
+      heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + 'MB',
+      heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + 'MB',
+      rss: Math.round(memoryUsage.rss / 1024 / 1024) + 'MB',
     },
   });
 });
 
 // Circuit breaker health endpoint — reports the live state of every registered
 // downstream-dependency circuit. Returns 503 if any circuit is currently open.
-app.get("/health/circuit-breakers", (req, res) => {
+app.get('/health/circuit-breakers', (req, res) => {
   try {
-    const circuitBreakerRegistry = require("./resilience/circuitBreakerRegistry");
+    const circuitBreakerRegistry = require('./resilience/circuitBreakerRegistry');
     const circuits = circuitBreakerRegistry.getAllStates();
-    const anyOpen = circuits.some((c) => c.state === "OPEN");
+    const anyOpen = circuits.some((c) => c.state === 'OPEN');
 
     res.status(anyOpen ? 503 : 200).json({
-      status: anyOpen ? "degraded" : "healthy",
+      status: anyOpen ? 'degraded' : 'healthy',
       timestamp: new Date().toISOString(),
       total: circuits.length,
-      open: circuits.filter((c) => c.state === "OPEN").length,
+      open: circuits.filter((c) => c.state === 'OPEN').length,
       circuits,
     });
   } catch (error) {
-    res.status(500).json({ status: "error", error: error.message });
+    res.status(500).json({ status: 'error', error: error.message });
   }
 });
 
 // Manual circuit reset — recover a tripped circuit without a service restart.
-app.post("/health/circuit-breakers/:service/reset", (req, res) => {
+app.post('/health/circuit-breakers/:service/reset', (req, res) => {
   try {
-    const circuitBreakerRegistry = require("./resilience/circuitBreakerRegistry");
+    const circuitBreakerRegistry = require('./resilience/circuitBreakerRegistry');
     const reset = circuitBreakerRegistry.reset(req.params.service);
     if (!reset) {
-      return res.status(404).json({ success: false, error: `No circuit registered for '${req.params.service}'` });
+      return res
+        .status(404)
+        .json({ success: false, error: `No circuit registered for '${req.params.service}'` });
     }
-    res.json({ success: true, service: req.params.service, message: "Circuit reset to CLOSED" });
+    res.json({ success: true, service: req.params.service, message: 'Circuit reset to CLOSED' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
